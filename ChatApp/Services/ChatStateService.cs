@@ -15,7 +15,7 @@ public class ChatStateService
     }
 
     public event Action? OnChange; // General state change
-    public event Action<string, string, string, DateTime, string?, bool, List<string>?>? OnMessageReceived;
+    public event Action<string, string, string, DateTime, string?, bool, List<string>?, int>? OnMessageReceived;
 
     // UserId -> UserName (Email)
     private ConcurrentDictionary<string, string> _onlineUsers = new();
@@ -48,6 +48,7 @@ public class ChatStateService
     public async void BroadcastMessage(string senderId, string senderName, string message, List<string> recipientIds, string? attachmentUrl)
     {
         var timestamp = DateTime.Now;
+        int messageId = 0;
 
         // Save to DB
         try
@@ -71,6 +72,7 @@ public class ChatStateService
 
                 db.ChatMessages.Add(msgEntity);
                 await db.SaveChangesAsync();
+                messageId = msgEntity.Id;
             }
         }
         catch (Exception ex)
@@ -79,8 +81,7 @@ public class ChatStateService
         }
 
         // Invoke event for all listeners. The listeners (Chat.razor) will filter if it's for them.
-        // Invoke event for all listeners. The listeners (Chat.razor) will filter if it's for them.
-        OnMessageReceived?.Invoke(senderId, senderName, message, timestamp, attachmentUrl, false, recipientIds);
+        OnMessageReceived?.Invoke(senderId, senderName, message, timestamp, attachmentUrl, false, recipientIds, messageId);
     }
 
     public event Action<int, string>? OnMessageEdited;

@@ -1,0 +1,47 @@
+@using ChatApp.Models
+
+@if (IsOpen && Conversation != null)
+{
+    <div class="modal-overlay" @onclick="OnClose">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h5 class="mb-0">Details</h5>
+                <button type="button" class="btn-close" @onclick="OnClose"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="text-muted small mb-2">PARTICIPANTS</h6>
+                <ul class="list-group list-group-flush">
+                    @foreach (var uid in Conversation.ParticipantIds)
+                    {
+                        var name = AllUsers.TryGetValue(uid, out var n) ? n : (uid == CurrentUserId ? "You" : "Unknown");
+                        var isOnline = OnlineUsers.ContainsKey(uid);
+
+                        <li class="list-group-item d-flex align-items-center p-2 bg-transparent border-0">
+                            <span class="status-dot @(isOnline || uid == CurrentUserId ? "online" : "offline")"></span>
+                            <span class="flex-grow-1">@name</span>
+                            @if (uid == CurrentUserId)
+                            {
+                                <span class="badge bg-light text-dark">You</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary w-100" @onclick="OnAddPeople">
+                    + Add People
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public ConversationViewModel? Conversation { get; set; }
+    [Parameter] public Dictionary<string, string> AllUsers { get; set; } = new();
+    [Parameter] public Dictionary<string, string> OnlineUsers { get; set; } = new();
+    [Parameter] public string CurrentUserId { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnAddPeople { get; set; }
+}

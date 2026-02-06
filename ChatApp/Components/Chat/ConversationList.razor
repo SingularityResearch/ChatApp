@@ -1,0 +1,97 @@
+@using ChatApp.Models
+
+<div class="user-list-panel">
+    <div class="p-2 d-flex justify-content-between align-items-center border-bottom border-secondary">
+        <h5 class="mb-0">Chats</h5>
+        <button class="btn btn-sm btn-primary" @onclick="OnStartNewChat">+</button>
+    </div>
+
+    <ul class="list-group list-group-flush">
+        @foreach (var conv in Conversations.OrderByDescending(c => c.ConversationId == "global").ThenByDescending(c =>
+        c.LastActivity))
+        {
+            var isSelected = SelectedConversation == conv;
+            <li class="list-group-item @(isSelected ? "active" : "")"
+            @onclick="() => OnConversationSelected.InvokeAsync(conv)">
+                <div class="d-flex justify-content-between w-100">
+                    <span class="fw-bold text-truncate">
+                        @if (!conv.IsGroup && conv.ConversationId != "global")
+                        {
+                            var otherId = conv.ParticipantIds.FirstOrDefault(id => id != CurrentUserId);
+                            if (otherId != null)
+                            {
+                                var isOnline = OnlineUsers.ContainsKey(otherId);
+                                <span class="status-dot @(isOnline ? "online" : "offline")"
+                                    title="@(isOnline ? "Online" : "Offline")"></span>
+                            }
+                        }
+                        @conv.DisplayName
+                    </span>
+                    @if (conv.IsGroup)
+                    {
+                        <span class="badge bg-secondary rounded-pill">@(conv.ParticipantIds.Count)</span>
+                    }
+                </div>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter] public List<ConversationViewModel> Conversations { get; set; } = new();
+    [Parameter] public ConversationViewModel? SelectedConversation { get; set; }
+    [Parameter] public string CurrentUserId { get; set; } = string.Empty;
+    [Parameter] public Dictionary<string, string> OnlineUsers { get; set; } = new();
+    [Parameter] public EventCallback<ConversationViewModel> OnConversationSelected { get; set; }
+    [Parameter] public EventCallback OnStartNewChat { get; set; }
+}
+
+<style>
+    .user-list-panel {
+        width: 250px;
+        background-color: var(--mica-alt-bg, #202020);
+        /* Fallback */
+        border-right: 1px solid var(--card-border, #333);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        height: 100%;
+    }
+
+    .list-group-item {
+        background-color: transparent;
+        color: var(--text-primary, #ddd);
+        cursor: pointer;
+        border-bottom: 1px solid var(--card-border, #333);
+        padding: 0.5rem 1rem;
+        /* More compact */
+    }
+
+    .list-group-item:hover {
+        background-color: var(--layer-fill, #2d2d2d);
+    }
+
+    .list-group-item.active {
+        background-color: var(--accent-dark, #0078d4);
+        border-color: var(--accent-dark, #0078d4);
+        color: white;
+    }
+
+    .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+    }
+
+    .status-dot.online {
+        background-color: #28a745;
+        box-shadow: 0 0 4px #28a745;
+    }
+
+    .status-dot.offline {
+        background-color: #dc3545;
+        opacity: 0.6;
+    }
+</style>

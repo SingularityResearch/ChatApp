@@ -1,0 +1,33 @@
+@using ChatApp.Models
+
+@if (IsOpen)
+{
+        <div class="modal-overlay" @onclick="OnCancel">
+            <div class="modal-card" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h5 class="mb-0">Delete Message?</h5>
+                    <button type="button" class="btn-close" @onclick="OnCancel"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this message? This action cannot be undone.</p>
+                @if (Message != null)
+                {
+                            <div class="p-3 border border-secondary rounded text-white small fst-italic" style="background-color: rgb(40, 40, 40);">
+                                "@Message.Message"
+                            </div>
+                }
+                </div>
+                <div class="modal-footer justify-content-end">
+                    <button class="btn btn-secondary me-2" @onclick="OnCancel">Cancel</button>
+                    <button class="btn btn-danger" @onclick="OnConfirm">Delete</button>
+                </div>
+            </div>
+        </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public ChatMessage? Message { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+}

@@ -1,0 +1,59 @@
+@using ChatApp.Models
+
+<div class="p-3">
+    @if (IsAddingParticipants)
+    {
+        <h4>Add users</h4>
+        <p>Add users to the conversation:</p>
+    }
+    else
+    {
+        <h4>New Chat</h4>
+        <p>Select users to start a conversation with:</p>
+    }
+    
+    <div class="list-group" style="max-width: 400px; max-height: 400px; overflow-y: auto;">
+        @foreach (var user in AllUsers)
+        {
+            var isSelected = SelectedUsers.Contains(user.Key);
+            var isOnline = OnlineUsers.ContainsKey(user.Key);
+
+            <button class="list-group-item list-group-item-action @(isSelected ? "active" : "")"
+            @onclick="() => OnToggleUser.InvokeAsync(user.Key)">
+                <div class="d-flex align-items-center">
+                    <input class="form-check-input darker-border-checkbox me-2" type="checkbox"
+                        checked="@isSelected" readonly />
+                    <span class="status-dot @(isOnline ? "online" : "offline")"
+                        title="@(isOnline ? "Online" : "Offline")"></span>
+                    <span class="ms-1">@user.Value</span>
+                </div>
+            </button>
+        }
+        @if (!AllUsers.Any())
+        {
+            <div class="text-muted">No other users found.</div>
+        }
+    </div>
+</div>
+
+<ChatInput ButtonText="Start" Placeholder="Type a message to start chat..." 
+           IsConnected="@IsConnected" 
+           OnSend="OnStart" 
+           OnFileChange="OnFileUpload"
+           Class="mt-auto">
+    @if (SelectedUsers.Count > 0)
+    {
+        <div class="text-muted small mt-1">Starting chat with: @SelectedUsers.Count users</div>
+    }
+</ChatInput>
+
+@code {
+    [Parameter] public Dictionary<string, string> AllUsers { get; set; } = new();
+    [Parameter] public Dictionary<string, string> OnlineUsers { get; set; } = new();
+    [Parameter] public HashSet<string> SelectedUsers { get; set; } = new();
+    [Parameter] public bool IsAddingParticipants { get; set; }
+    [Parameter] public bool IsConnected { get; set; }
+    [Parameter] public EventCallback<string> OnToggleUser { get; set; }
+    [Parameter] public EventCallback<string> OnStart { get; set; }
+    [Parameter] public EventCallback<InputFileChangeEventArgs> OnFileUpload { get; set; }
+}

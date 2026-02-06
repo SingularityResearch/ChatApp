@@ -1,0 +1,151 @@
+@using ChatApp.Models
+
+<div class="message-bubble @(Message.IsMine ? "mine" : "theirs")">
+    @if (IsGroup && !Message.IsMine)
+    {
+        <div class="message-sender">@Message.User</div>
+    }
+
+    @if (Message.IsEditing)
+    {
+        <div class="edit-mode">
+            <input class="form-control form-control-sm mb-1" @bind="Message.EditBuffer" />
+            <div class="d-flex gap-2">
+                <button class="btn btn-xs btn-success" @onclick="Save">Save</button>
+                <button class="btn btn-xs btn-secondary" @onclick="Cancel">Cancel</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="message-content-wrapper">
+            @if (Message.IsMine)
+            {
+                <div class="message-actions">
+                    <button class="btn-icon" @onclick="() => OnStartEdit.InvokeAsync(Message)" title="Edit">✏️</button>
+                    <button class="btn-icon text-danger" @onclick="() => OnDelete.InvokeAsync(Message)"
+                        title="Delete">🗑️</button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(Message.AttachmentUrl))
+            {
+                <div class="message-attachment">
+                    <a href="@Message.AttachmentUrl" target="_blank">
+                        <img src="@Message.AttachmentUrl" class="img-thumbnail" style="max-width: 200px" />
+                    </a>
+                </div>
+            }
+            <div class="message-text">@Message.Message</div>
+        </div>
+    }
+
+    <div class="message-time">@Message.Timestamp.ToShortTimeString()</div>
+</div>
+
+@code {
+    [Parameter] public ChatMessage Message { get; set; } = new();
+    [Parameter] public bool IsGroup { get; set; }
+    [Parameter] public EventCallback<ChatMessage> OnStartEdit { get; set; }
+    [Parameter] public EventCallback<ChatMessage> OnDelete { get; set; }
+    [Parameter] public EventCallback<ChatMessage> OnSaveEdit { get; set; }
+    [Parameter] public EventCallback<ChatMessage> OnCancelEdit { get; set; }
+
+    private async Task Save()
+    {
+        await OnSaveEdit.InvokeAsync(Message);
+    }
+
+    private async Task Cancel()
+    {
+        await OnCancelEdit.InvokeAsync(Message);
+    }
+}
+
+<style>
+    /* Message Bubble Styles */
+    .message-bubble {
+        max-width: 70%;
+        padding: 10px 15px;
+        border-radius: 10px;
+        position: relative;
+        animation: fadeIn 0.3s ease;
+        margin-bottom: 5px;
+    }
+
+    .message-bubble.mine {
+        align-self: flex-end;
+        background-color: var(--accent-dark, #0078d4);
+        color: white;
+        border-bottom-right-radius: 2px;
+    }
+
+    .message-bubble.theirs {
+        align-self: flex-start;
+        background-color: var(--card-bg, #2b2b2b);
+        color: var(--text-primary, #ddd);
+        border: 1px solid var(--card-border, #333);
+        border-bottom-left-radius: 2px;
+    }
+
+    .message-bubble:hover .message-actions {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .message-actions {
+        position: absolute;
+        top: -25px;
+        right: 0;
+        background: var(--card-bg, #2b2b2b);
+        border: 1px solid var(--card-border, #333);
+        border-radius: 4px;
+        padding: 2px 5px;
+        display: flex;
+        gap: 5px;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 0.8rem;
+        padding: 2px;
+        color: var(--text-primary, #ddd);
+    }
+
+    .btn-icon:hover {
+        transform: scale(1.2);
+    }
+
+    .message-sender {
+        font-size: 0.75rem;
+        font-weight: bold;
+        margin-bottom: 2px;
+        opacity: 0.8;
+    }
+
+    .message-time {
+        font-size: 0.65rem;
+        text-align: right;
+        margin-top: 5px;
+        opacity: 0.7;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>

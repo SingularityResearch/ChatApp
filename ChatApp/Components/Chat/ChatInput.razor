@@ -1,0 +1,44 @@
+<div class="chat-input-area @Class">
+    <div class="input-group">
+        <InputFile OnChange="OnFileChange" class="form-control" style="max-width: 200px" />
+        <input type="text" class="form-control" placeholder="@Placeholder" @bind="MessageInput" @bind:event="oninput"
+        @onkeyup="HandleKeyUp" />
+        <button class="btn btn-primary" @onclick="Send" disabled="@(!IsConnected)">@ButtonText</button>
+    </div>
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public bool IsConnected { get; set; } = true;
+    [Parameter] public string ButtonText { get; set; } = "Send";
+    [Parameter] public string Placeholder { get; set; } = "Type a message...";
+    [Parameter] public EventCallback<string> OnSend { get; set; }
+    [Parameter] public EventCallback<InputFileChangeEventArgs> OnFileChange { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string Class { get; set; } = "";
+
+    private string MessageInput { get; set; } = "";
+
+    private async Task Send()
+    {
+        if (!string.IsNullOrWhiteSpace(MessageInput))
+        {
+            await OnSend.InvokeAsync(MessageInput);
+            MessageInput = string.Empty;
+        }
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Send();
+    }
+}
+
+<style>
+    .chat-input-area {
+        padding: 1rem;
+        background-color: var(--mica-alt-bg, #202020);
+        /* Fallback */
+        border-top: 1px solid var(--card-border, #333);
+    }
+</style>
