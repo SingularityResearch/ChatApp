@@ -1,0 +1,118 @@
+:root {
+    /* Windows 11 Dark Mode Palette */
+    --mica-bg: #202020;
+    --mica-alt-bg: #272727;
+    --layer-fill: #2d2d2d;
+    --card-bg: #323232;
+    --card-border: #3f3f3f;
+    --text-primary: #ffffff;
+    --text-secondary: #d0d0d0;
+    --text-muted: #9e9e9e;
+    --accent-color: #60cdff;
+    --accent-dark: #0067c0;
+    --accent-light: #98eeff;
+    --control-solid: #454545;
+    --control-border: #555555;
+    
+    /* Layout */
+    --sidebar-width: 300px;
+    --header-height: 50px;
+}
+
+html, body {
+    font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: var(--mica-bg);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden; /* App-like feel */
+    margin: 0;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #777;
+}
+
+a, .btn-link {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+    color: var(--accent-light);
+}
+
+/* Button overrides */
+.btn-primary {
+    background-color: var(--accent-dark);
+    border-color: var(--accent-dark);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0078d4;
+    border-color: #0078d4;
+}
+
+.form-control {
+    background-color: var(--control-solid);
+    border-color: var(--control-border);
+    color: var(--text-primary);
+}
+
+.form-control:focus {
+    background-color: var(--layer-fill);
+    color: var(--text-primary);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 0.2rem rgba(96, 205, 255, 0.25);
+}
+
+/* Layout Containers */
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--mica-alt-bg);
+    border-right: 1px solid var(--card-border);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--mica-bg);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Utility */
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Blazor Error */
+.blazor-error-boundary {
+    background: #b32121;
+    color: white;
+    padding: 1rem;
+}
