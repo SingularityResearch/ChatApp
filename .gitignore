@@ -120,3 +120,6 @@ ipch/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Uploads
+**/uploads/
