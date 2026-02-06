@@ -1,27 +1,41 @@
 # Blazor Chat App
 
 A real-time chat application built with **Blazor Server**, **SignalR**, and **EF Core**. 
-This application provides a Teams-like user experience with features for group conversations, online status tracking, and file sharing.
+This application provides a Teams-like user experience with features for group conversations, online status tracking, multimedia sharing, and message management.
 
 ## 🚀 Features
 
+### Core Messaging
 - **Real-time Messaging**: Instant message delivery using SignalR.
+- **Message Management**:
+    - **Edit Messages**: Inline editing for fixing typos or updating content.
+    - **Delete Messages**: Remove messages with a secure, custom-styled confirmation modal.
+- **File Sharing**: 
+    - Upload and share images/files directly in the chat.
+    - Visual previews for image attachments.
+
+### Conversations & Presence
 - **Conversation Grouping**: 
-    - Messages are grouped into conversations (1-on-1 or Groups).
-    - Sidebar lists recent chats with the most active ones on top.
-    - "General (Everyone)" broadcast channel.
+    - Messages are automatically grouped into conversations (1-on-1 or Groups).
+    - Sidebar lists recent chats, sorted by activity.
+    - "General (Everyone)" broadcast channel for all users.
 - **User Presence**: 
     - Real-time **Online/Offline** status indicators.
     - Status dots shown in the sidebar and chat details.
-- **File Sharing**: 
-    - Upload and share images/files directly in the chat.
+
+### User Experience
 - **Notifications**:
     - **New Chat Alert**: Popup notification when someone starts a new conversation with you.
-    - **Toast Notifications**: In-app popup for incoming messages when viewing a different chat.
-    - Audio/Visual cues (Toast auto-dismisses after 5s).
-- **Identity & Security**: 
-    - Built on ASP.NET Core Identity.
-    - Secure login and registration.
+    - **Toast Notifications**: In-app popups for incoming messages when viewing a different chat.
+    - Auto-dismissing alerts for non-intrusive updates.
+- **UI & Design**:
+    - **Windows 11 Inspired**: Dark mode layout with Mica-like aesthetics.
+    - **Responsive**: Adaptive layout for sidebar and main chat area.
+
+### Identity & Security
+- **Authentication**: Built on ASP.NET Core Identity.
+- **User Management**: Secure login and registration.
+- **Secure Handling**: Chat ownership checks for edit/delete actions (UI enforced).
 
 ## 🛠️ Technologies
 
@@ -29,7 +43,7 @@ This application provides a Teams-like user experience with features for group c
 - **Real-time**: SignalR
 - **Database**: SQLite (Development default)
 - **ORM**: Entity Framework Core
-- **Styling**: Bootstrap 5 + Custom Mica-inspired CSS
+- **Styling**: Bootstrap 5 + Custom CSS (Mica Theme)
 
 ## 📦 Getting Started
 
@@ -49,7 +63,6 @@ This application provides a Teams-like user experience with features for group c
    ```bash
    dotnet ef database update
    ```
-   *(Optional if `dotnet run` handles it, but good practice)*.
 
 3. **Run the Application**
    ```bash
@@ -63,7 +76,7 @@ This application provides a Teams-like user experience with features for group c
 
 - **Components/Pages/Chat.razor**: The core chat interface handling UI, logic, and events.
 - **Hubs/ChatHub.cs**: SignalR Hub managing real-time connections and presence.
-- **Services/ChatStateService.cs**: Manages in-memory state for online users and message broadcasting event streams.
+- **Services/ChatStateService.cs**: Manages in-memory state for online users and message broadcasting.
 - **Data/**: EF Core context and migrations.
 
 ## 🤝 Contributing

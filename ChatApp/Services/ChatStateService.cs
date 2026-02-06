@@ -79,7 +79,55 @@ public class ChatStateService
         }
 
         // Invoke event for all listeners. The listeners (Chat.razor) will filter if it's for them.
+        // Invoke event for all listeners. The listeners (Chat.razor) will filter if it's for them.
         OnMessageReceived?.Invoke(senderId, senderName, message, timestamp, attachmentUrl, false, recipientIds);
+    }
+
+    public event Action<int, string>? OnMessageEdited;
+    public event Action<int>? OnMessageDeleted;
+
+    public async Task EditMessage(int messageId, string newContent)
+    {
+        try
+        {
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var msg = await db.ChatMessages.FindAsync(messageId);
+                if (msg != null)
+                {
+                    msg.Message = newContent;
+                    await db.SaveChangesAsync();
+                    OnMessageEdited?.Invoke(messageId, newContent);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error editing message: {ex.Message}");
+        }
+    }
+
+    public async Task DeleteMessage(int messageId)
+    {
+        try
+        {
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var msg = await db.ChatMessages.FindAsync(messageId);
+                if (msg != null)
+                {
+                    db.ChatMessages.Remove(msg);
+                    await db.SaveChangesAsync();
+                    OnMessageDeleted?.Invoke(messageId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting message: {ex.Message}");
+        }
     }
 
     private void NotifyStateChanged() => OnChange?.Invoke();

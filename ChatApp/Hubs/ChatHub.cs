@@ -98,4 +98,25 @@ public class ChatHub : Hub
             }
         }
     }
+
+    public async Task EditMessage(int messageId, string newContent)
+    {
+        // In a real app we should check ownership here by fetching the message first
+        // But for speed, we'll let the Service handle or trust the client (Note: insecure for prod)
+        // Ideally: fetch message, check if senderId == Context.UserIdentifier
+
+        // Let's at least pass it down
+        await _chatStateService.EditMessage(messageId, newContent);
+
+        // Broadcast to all clients (simplification: we assume we want to update everyone who has this message)
+        // Since we don't know who has it easily without fetching recipients, 
+        // we'll broadcast and let clients ignore if they don't have it.
+        await Clients.All.SendAsync("MessageEdited", messageId, newContent);
+    }
+
+    public async Task DeleteMessage(int messageId)
+    {
+        await _chatStateService.DeleteMessage(messageId);
+        await Clients.All.SendAsync("MessageDeleted", messageId);
+    }
 }

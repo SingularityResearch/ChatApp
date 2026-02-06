@@ -21,9 +21,10 @@
             <h5 class="mb-0">Chats</h5>
             <button class="btn btn-sm btn-primary" @onclick="StartNewChat">+</button>
         </div>
-        
+
         <ul class="list-group list-group-flush">
-            @foreach (var conv in Conversations.OrderByDescending(c => c.ConversationId == "global").ThenByDescending(c => c.LastActivity))
+            @foreach (var conv in Conversations.OrderByDescending(c => c.ConversationId == "global").ThenByDescending(c
+            => c.LastActivity))
             {
                 var isSelected = SelectedConversation == conv && !IsNewChatMode;
                 <li class="list-group-item @(isSelected ? "active" : "")" @onclick="() => SelectConversation(conv)">
@@ -35,7 +36,8 @@
                                 var otherId = conv.ParticipantIds.FirstOrDefault(id => id != currentUserId);
                                 if (otherId != null)
                                 {
-                                     <span class="status-dot @(IsUserOnline(otherId) ? "online" : "offline")" title="@(IsUserOnline(otherId) ? "Online" : "Offline")"></span>
+                                    <span class="status-dot @(IsUserOnline(otherId) ? "online" : "offline")"
+                                        title="@(IsUserOnline(otherId) ? "Online" : "Offline")"></span>
                                 }
                             }
                             @conv.DisplayName
@@ -70,12 +72,14 @@
                     {
                         var isSelected = NewChatSelectedUsers.Contains(user.Key);
                         var isOnline = IsUserOnline(user.Key);
-                        
-                        <button class="list-group-item list-group-item-action @(isSelected ? "active" : "")" 
-                                @onclick="() => ToggleNewChatUser(user.Key)">
+
+                        <button class="list-group-item list-group-item-action @(isSelected ? "active" : "")"
+                        @onclick="() => ToggleNewChatUser(user.Key)">
                             <div class="d-flex align-items-center">
-                                <input class="form-check-input darker-border-checkbox me-2" type="checkbox" checked="@isSelected" readonly />
-                                <span class="status-dot @(isOnline ? "online" : "offline")" title="@(isOnline ? "Online" : "Offline")"></span>
+                                <input class="form-check-input darker-border-checkbox me-2" type="checkbox"
+                                    checked="@isSelected" readonly />
+                                <span class="status-dot @(isOnline ? "online" : "offline")"
+                                    title="@(isOnline ? "Online" : "Offline")"></span>
                                 <span class="ms-1">@user.Value</span>
                             </div>
                         </button>
@@ -86,87 +90,148 @@
                     }
                 </div>
             </div>
-            
-             <!-- Input Area for New Chat -->
-             <div class="chat-input-area mt-auto">
-                 <div class="input-group">
+
+            <!-- Input Area for New Chat -->
+            <div class="chat-input-area mt-auto">
+                <div class="input-group">
                     <InputFile OnChange="UploadFile" class="form-control" style="max-width: 200px" />
-                    <input type="text" class="form-control" placeholder="Type a message to start chat..." @bind="messageInput"
-                    @bind:event="oninput" @onkeyup="HandleKeyUp" />
+                    <input type="text" class="form-control" placeholder="Type a message to start chat..."
+                    @bind="messageInput" @bind:event="oninput" @onkeyup="HandleKeyUp" />
                     <button class="btn btn-primary" @onclick="Send" disabled="@(!IsConnected)">Start</button>
                 </div>
-                 @if (NewChatSelectedUsers.Count > 0)
-                 {
-                     <div class="text-muted small mt-1">Starting chat with: @NewChatSelectedUsers.Count users</div>
-                 }
+                @if (NewChatSelectedUsers.Count > 0)
+                {
+                    <div class="text-muted small mt-1">Starting chat with: @NewChatSelectedUsers.Count users</div>
+                }
             </div>
         }
         else if (SelectedConversation != null)
         {
-            <div class="chat-header p-2 border-bottom border-secondary bg-mica-alt d-flex justify-content-between align-items-center">
+            <div
+                class="chat-header p-2 border-bottom border-secondary bg-mica-alt d-flex justify-content-between align-items-center">
                 <strong>@SelectedConversation.DisplayName</strong>
                 @if (SelectedConversation.ConversationId != "global")
                 {
-                     <button class="btn btn-sm btn-outline-secondary border-0" @onclick="ToggleDetails" title="Conversation Details">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
-                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+                    <button class="btn btn-sm btn-outline-secondary border-0" @onclick="ToggleDetails"
+                        title="Conversation Details">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                            class="bi bi-info-circle" viewBox="0 0 16 16">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+                            <path
+                                d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
                         </svg>
-                     </button>
+                    </button>
                 }
             </div>
 
             <!-- Details Modal -->
             @if (IsDetailsOpen && SelectedConversation != null)
             {
-               <div class="modal-overlay" @onclick="ToggleDetails">
-                   <div class="modal-card" @onclick:stopPropagation="true">
-                       <div class="modal-header">
-                           <h5 class="mb-0">Details</h5>
-                           <button type="button" class="btn-close" @onclick="ToggleDetails"></button>
-                       </div>
-                       <div class="modal-body">
-                           <h6 class="text-muted small mb-2">PARTICIPANTS</h6>
-                           <ul class="list-group list-group-flush">
-                               @foreach(var uid in SelectedConversation.ParticipantIds)
-                               {
-                                   var name = AllUsers.TryGetValue(uid, out var n) ? n : (uid == currentUserId ? "You" : "Unknown");
-                                   var isOnline = IsUserOnline(uid);
-                                   
-                                   <li class="list-group-item d-flex align-items-center p-2 bg-transparent border-0">
-                                       <span class="status-dot @(isOnline || uid == currentUserId ? "online" : "offline")"></span>
-                                       <span class="flex-grow-1">@name</span>
-                                       @if(uid == currentUserId) { <span class="badge bg-light text-dark">You</span> }
-                                   </li>
-                               }
-                           </ul>
-                       </div>
-                       <div class="modal-footer">
-                           <button class="btn btn-primary w-100" @onclick="AddUserToCurrentChat">
-                               + Add People
-                           </button>
-                       </div>
-                   </div>
-               </div>
+                <div class="modal-overlay" @onclick="ToggleDetails">
+                    <div class="modal-card" @onclick:stopPropagation="true">
+                        <div class="modal-header">
+                            <h5 class="mb-0">Details</h5>
+                            <button type="button" class="btn-close" @onclick="ToggleDetails"></button>
+                        </div>
+                        <div class="modal-body">
+                            <h6 class="text-muted small mb-2">PARTICIPANTS</h6>
+                            <ul class="list-group list-group-flush">
+                                @foreach (var uid in SelectedConversation.ParticipantIds)
+                                {
+                                    var name = AllUsers.TryGetValue(uid, out var n) ? n : (uid == currentUserId ? "You" :
+                                    "Unknown");
+                                    var isOnline = IsUserOnline(uid);
+
+                                    <li class="list-group-item d-flex align-items-center p-2 bg-transparent border-0">
+                                        <span class="status-dot @(isOnline || uid == currentUserId ? "online" : "offline")"></span>
+                                        <span class="flex-grow-1">@name</span>
+                                        @if (uid == currentUserId)
+                                        {
+                                            <span class="badge bg-light text-dark">You</span>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary w-100" @onclick="AddUserToCurrentChat">
+                                + Add People
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Delete Confirmation Modal -->
+            @if (IsDeleteConfirmOpen)
+            {
+                <div class="modal-overlay" @onclick="CancelDelete">
+                    <div class="modal-card" @onclick:stopPropagation="true">
+                        <div class="modal-header">
+                            <h5 class="mb-0">Delete Message?</h5>
+                            <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to delete this message? This action cannot be undone.</p>
+                            @if (MessageToDelete != null)
+                            {
+                                <div class="p-3 border border-secondary rounded text-white small fst-italic"
+                                    style="background-color: rgb(40, 40, 40);">
+                                    "@MessageToDelete.Message"
+                                </div>
+                            }
+                        </div>
+                        <div class="modal-footer justify-content-end">
+                            <button class="btn btn-secondary me-2" @onclick="CancelDelete">Cancel</button>
+                            <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                        </div>
+                    </div>
+                </div>
             }
 
             <div class="chat-messages" id="chatScrollView">
                 @foreach (var msg in SelectedConversation.Messages)
                 {
                     <div class="message-bubble @(msg.IsMine ? "mine" : "theirs")">
-                        @if(SelectedConversation.IsGroup && !msg.IsMine) 
+                        @if (SelectedConversation.IsGroup && !msg.IsMine)
                         {
                             <div class="message-sender">@msg.User</div>
                         }
-                        @if (!string.IsNullOrEmpty(msg.AttachmentUrl))
+
+                        @if (msg.IsEditing)
                         {
-                            <div class="message-attachment">
-                                <a href="@msg.AttachmentUrl" target="_blank">
-                                    <img src="@msg.AttachmentUrl" class="img-thumbnail" style="max-width: 200px" />
-                                </a>
+                            <div class="edit-mode">
+                                <input class="form-control form-control-sm mb-1" @bind="msg.EditBuffer" />
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-xs btn-success" @onclick="() => SaveEdit(msg)">Save</button>
+                                    <button class="btn btn-xs btn-secondary" @onclick="() => CancelEdit(msg)">Cancel</button>
+                                </div>
                             </div>
                         }
-                        <div class="message-text">@msg.Message</div>
+                        else
+                        {
+                            <div class="message-content-wrapper">
+                                @if (msg.IsMine)
+                                {
+                                    <div class="message-actions">
+                                        <button class="btn-icon" @onclick="() => StartEdit(msg)" title="Edit">✏️</button>
+                                        <button class="btn-icon text-danger" @onclick="() => DeleteMessage(msg)"
+                                            title="Delete">🗑️</button>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(msg.AttachmentUrl))
+                                {
+                                    <div class="message-attachment">
+                                        <a href="@msg.AttachmentUrl" target="_blank">
+                                            <img src="@msg.AttachmentUrl" class="img-thumbnail" style="max-width: 200px" />
+                                        </a>
+                                    </div>
+                                }
+                                <div class="message-text">@msg.Message</div>
+                            </div>
+                        }
+
                         <div class="message-time">@msg.Timestamp.ToShortTimeString()</div>
                     </div>
                 }
@@ -184,9 +249,9 @@
         }
         else
         {
-             <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
-                 <p class="fs-4">Select a conversation or start a new one.</p>
-             </div>
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                <p class="fs-4">Select a conversation or start a new one.</p>
+            </div>
         }
     </div>
 </div>
@@ -206,20 +271,28 @@
         position: fixed;
         top: 20px;
         right: 20px;
-        background-color: var(--accent-dark); /* Using theme color */
+        background-color: var(--accent-dark);
+        /* Using theme color */
         color: white;
         padding: 12px 20px;
         border-radius: 8px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         z-index: 2000;
         min-width: 250px;
         animation: slideIn 0.3s ease-out;
         cursor: pointer;
     }
-    
+
     @@keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
     }
 
     /* Scoped styles for Chat.razor */
@@ -285,6 +358,42 @@
         border-bottom-right-radius: 2px;
     }
 
+
+    .message-bubble:hover .message-actions {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .message-actions {
+        position: absolute;
+        top: -25px;
+        right: 0;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 4px;
+        padding: 2px 5px;
+        display: flex;
+        gap: 5px;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 0.8rem;
+        padding: 2px;
+        color: var(--text-primary);
+    }
+
+    .btn-icon:hover {
+        transform: scale(1.2);
+    }
+
     .message-bubble.theirs {
         align-self: flex-start;
         background-color: var(--card-bg);
@@ -324,7 +433,7 @@
             transform: translateY(0);
         }
     }
-    
+
     .status-dot {
         display: inline-block;
         width: 10px;
@@ -332,14 +441,16 @@
         border-radius: 50%;
         margin-right: 6px;
     }
-    
+
     .status-dot.online {
-        background-color: #28a745; /* Green */
+        background-color: #28a745;
+        /* Green */
         box-shadow: 0 0 4px #28a745;
     }
-    
+
     .status-dot.offline {
-        background-color: #dc3545; /* Red */
+        background-color: #dc3545;
+        /* Red */
         opacity: 0.6;
     }
 
@@ -350,26 +461,26 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0,0,0,0.5);
+        background-color: rgba(0, 0, 0, 0.5);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 1000;
         backdrop-filter: blur(2px);
     }
-    
+
     .modal-card {
         background-color: var(--mica-bg);
         border: 1px solid var(--card-border);
         border-radius: 12px;
         width: 350px;
         max-width: 90%;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         display: flex;
         flex-direction: column;
         overflow: hidden;
     }
-    
+
     .modal-header {
         padding: 15px;
         border-bottom: 1px solid var(--card-border);
@@ -378,13 +489,13 @@
         align-items: center;
         background-color: var(--mica-alt-bg);
     }
-    
+
     .modal-body {
         max-height: 400px;
         overflow-y: auto;
         padding: 10px;
     }
-    
+
     .modal-footer {
         padding: 15px;
         border-top: 1px solid var(--card-border);
@@ -406,15 +517,20 @@
     }
 
     private bool IsUserOnline(string userId) => OnlineUsers.ContainsKey(userId);
-    
+
     public class ChatMessage
     {
+        public int Id { get; set; } // Added ID
         public string User { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; }
         public string? AttachmentUrl { get; set; }
         public bool IsMine { get; set; }
-        public string? SenderId { get; set; } 
+        public string? SenderId { get; set; }
+
+        // UI State
+        public bool IsEditing { get; set; }
+        public string EditBuffer { get; set; } = string.Empty;
     }
 
     // State
@@ -423,12 +539,16 @@
     private bool IsNewChatMode = false;
     private bool IsDetailsOpen = false;
     private bool IsAddingParticipants = false;
-    
+
+    // Delete Modal State
+    private bool IsDeleteConfirmOpen = false;
+    private ChatMessage? MessageToDelete;
+
     private string? messageInput;
     private Dictionary<string, string> OnlineUsers = new Dictionary<string, string>();
     private Dictionary<string, string> AllUsers = new Dictionary<string, string>(); // UserId -> UserName
     private HashSet<string> NewChatSelectedUsers = new HashSet<string>();
-    
+
     // User Info
     private string? currentUserId;
     private string? currentUserName;
@@ -453,146 +573,21 @@
 
         ChatState.OnChange += HandleStateChange;
         ChatState.OnMessageReceived += HandleMessageReceived;
+
+        // New Events
+        ChatState.OnMessageEdited += HandleMessageEdited;
+        ChatState.OnMessageDeleted += HandleMessageDeleted;
+
         UpdateOnlineUsers();
-    }
-
-    private async Task LoadData()
-    {
-        if (currentUserId == null) return;
-
-        using (var scope = ScopeFactory.CreateScope())
-        {
-             var db = scope.ServiceProvider.GetRequiredService<ChatApp.Data.ApplicationDbContext>();
-             
-             // 1. Fetch All Users
-             AllUsers = await db.Users
-                .Where(u => u.Id != currentUserId)
-                .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
-
-             // 2. Fetch History
-             var history = await db.ChatMessages
-                .Include(m => m.Recipients)
-                .Where(m => !m.Recipients.Any() || m.SenderId == currentUserId || m.Recipients.Any(r => r.UserId == currentUserId))
-                .OrderBy(m => m.Timestamp)
-                .ToListAsync();
-
-             // PRE-FETCH NAMES (Merge DB users with history participants in case of deleted users?)
-             // Actually AllUsers covers existing users. We can rely on that + OnlineUsers.
-             
-             Conversations.Clear();
-
-             foreach(var h in history)
-             {
-                 // Determine Participants
-                 var participants = h.Recipients.Select(r => r.UserId).ToHashSet();
-                 participants.Add(h.SenderId); // Add sender
-                 
-                 string convKey;
-                 if (!h.Recipients.Any()) 
-                 {
-                     convKey = "global";
-                 }
-                 else
-                 {
-                     convKey = GetConversationKey(participants);
-                 }
-
-                 var conversation = Conversations.FirstOrDefault(c => c.ConversationId == convKey);
-                 if (conversation == null)
-                 {
-                     conversation = new ConversationViewModel 
-                     { 
-                         ConversationId = convKey,
-                         ParticipantIds = participants.ToList(),
-                         DisplayName = GenerateDisplayNameFromMap(participants, convKey == "global", AllUsers)
-                     };
-                     Conversations.Add(conversation);
-                 }
-
-                 conversation.Messages.Add(new ChatMessage
-                 {
-                     User = AllUsers.TryGetValue(h.SenderId, out var name) ? name : h.SenderName, // Prefer DB name
-                     Message = h.Message,
-                     Timestamp = h.Timestamp,
-                     AttachmentUrl = h.AttachmentUrl,
-                     IsMine = h.SenderId == currentUserId,
-                     SenderId = h.SenderId
-                 });
-             }
-             
-             // Initial selection: Most recent
-             if (SelectedConversation == null)
-             {
-                 SelectedConversation = Conversations.OrderByDescending(c => c.LastActivity).FirstOrDefault();
-             }
-        }
-    }
-
-    private string GetConversationKey(IEnumerable<string> userIds)
-    {
-        var sorted = userIds.OrderBy(u => u).ToList();
-        return string.Join("|", sorted);
-    }
-    
-    // Synchronous helper using the pre-fetched map
-    private string GenerateDisplayNameFromMap(HashSet<string> participantIds, bool isGlobal, Dictionary<string, string> userMap)
-    {
-        if (isGlobal) return "General (Everyone)";
-
-        // Remove me
-        var others = participantIds.Where(u => u != currentUserId).ToList();
-        var names = new List<string>();
-        
-        foreach(var uid in others)
-        {
-             if (userMap.TryGetValue(uid, out var name) && !string.IsNullOrEmpty(name))
-             {
-                 names.Add(name);
-             }
-             else 
-             {
-                 names.Add(uid.Substring(0, 8)); 
-             }
-        }
-
-        if (names.Count == 0) return "Just You";
-        return string.Join(", ", names);
-    }
-    
-    // Kept for Fallback / Runtime
-    private async Task<string> GenerateDisplayName(HashSet<string> participantIds, bool isGlobal)
-    {
-         // Fallback to OnlineUsers logic if we don't have DB access conveniently
-         // ...
-         // For now, let's reuse the map logic but we need to fetch? 
-         // Actually, let's just use OnlineUsers as "Best Effort" for runtime events
-         
-        if (isGlobal) return "General (Everyone)";
-
-        var others = participantIds.Where(u => u != currentUserId).ToList();
-        var names = new List<string>();
-        foreach(var uid in others)
-        {
-             if (OnlineUsers.TryGetValue(uid, out var name))
-             {
-                 names.Add(name);
-             }
-             else 
-             {
-                 names.Add(uid.Substring(0, 8)); 
-             }
-        }
-
-        if (names.Count == 0) return "Unknown";
-        if (names.Count == 1) return names[0];
-        if (names.Count == 2) return $"{names[0]} & {names[1]}";
-        return $"{names[0]} & {names.Count - 1} others";
     }
 
     public async ValueTask DisposeAsync()
     {
         ChatState.OnChange -= HandleStateChange;
         ChatState.OnMessageReceived -= HandleMessageReceived;
+        ChatState.OnMessageEdited -= HandleMessageEdited;
+        ChatState.OnMessageDeleted -= HandleMessageDeleted;
+
         if (currentUserId != null) ChatState.SetUserOffline(currentUserId);
     }
 
@@ -609,7 +604,142 @@
         .ToDictionary(k => k.Key, v => v.Value);
     }
 
-    private void HandleMessageReceived(string senderId, string senderName, string message, DateTime timestamp, string? attachmentUrl, bool _, List<string>? recipientIds)
+    private void HandleMessageEdited(int messageId, string newContent)
+    {
+        InvokeAsync(() =>
+        {
+            foreach (var conv in Conversations)
+            {
+                var msg = conv.Messages.FirstOrDefault(m => m.Id == messageId);
+                if (msg != null)
+                {
+                    msg.Message = newContent;
+                }
+            }
+            StateHasChanged();
+        });
+    }
+
+    private void HandleMessageDeleted(int messageId)
+    {
+        InvokeAsync(() =>
+        {
+            foreach (var conv in Conversations)
+            {
+                var msg = conv.Messages.FirstOrDefault(m => m.Id == messageId);
+                if (msg != null)
+                {
+                    conv.Messages.Remove(msg);
+                }
+            }
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadData()
+    {
+        if (currentUserId == null) return;
+
+        using (var scope = ScopeFactory.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ChatApp.Data.ApplicationDbContext>();
+
+            // 1. Fetch All Users
+            AllUsers = await db.Users
+            .Where(u => u.Id != currentUserId)
+            .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
+
+            // 2. Fetch History
+            var history = await db.ChatMessages
+            .Include(m => m.Recipients)
+            .Where(m => !m.Recipients.Any() || m.SenderId == currentUserId || m.Recipients.Any(r => r.UserId == currentUserId))
+            .OrderBy(m => m.Timestamp)
+            .ToListAsync();
+
+            Conversations.Clear();
+
+            foreach (var h in history)
+            {
+                // Determine Participants
+                var participants = h.Recipients.Select(r => r.UserId).ToHashSet();
+                participants.Add(h.SenderId); // Add sender
+
+                string convKey;
+                if (!h.Recipients.Any())
+                {
+                    convKey = "global";
+                }
+                else
+                {
+                    convKey = GetConversationKey(participants);
+                }
+
+                var conversation = Conversations.FirstOrDefault(c => c.ConversationId == convKey);
+                if (conversation == null)
+                {
+                    conversation = new ConversationViewModel
+                        {
+                            ConversationId = convKey,
+                            ParticipantIds = participants.ToList(),
+                            DisplayName = GenerateDisplayNameFromMap(participants, convKey == "global", AllUsers)
+                        };
+                    Conversations.Add(conversation);
+                }
+
+                conversation.Messages.Add(new ChatMessage
+                    {
+                        Id = h.Id, // Populate ID
+                        User = AllUsers.TryGetValue(h.SenderId, out var name) ? name : h.SenderName,
+                        Message = h.Message,
+                        Timestamp = h.Timestamp,
+                        AttachmentUrl = h.AttachmentUrl,
+                        IsMine = h.SenderId == currentUserId,
+                        SenderId = h.SenderId
+                    });
+            }
+
+            // Initial selection: Most recent
+            if (SelectedConversation == null)
+            {
+                SelectedConversation = Conversations.OrderByDescending(c => c.LastActivity).FirstOrDefault();
+            }
+        }
+    }
+
+    private string GetConversationKey(IEnumerable<string> userIds)
+    {
+        var sorted = userIds.OrderBy(u => u).ToList();
+        return string.Join("|", sorted);
+    }
+
+    // Synchronous helper using the pre-fetched map
+    private string GenerateDisplayNameFromMap(HashSet<string> participantIds, bool isGlobal, Dictionary<string, string>
+    userMap)
+    {
+        if (isGlobal) return "General (Everyone)";
+
+        // Remove me
+        var others = participantIds.Where(u => u != currentUserId).ToList();
+        var names = new List<string>();
+
+        foreach (var uid in others)
+        {
+            if (userMap.TryGetValue(uid, out var name) && !string.IsNullOrEmpty(name))
+            {
+                names.Add(name);
+            }
+            else
+            {
+                names.Add(uid.Substring(0, 8));
+            }
+        }
+
+        if (names.Count == 0) return "Just You";
+        return string.Join(", ", names);
+    }
+
+    private void HandleMessageReceived(string senderId, string senderName, string message, DateTime timestamp, string?
+    attachmentUrl, bool _, List<string>? recipientIds)
     {
         if (currentUserId == null) return;
 
@@ -617,73 +747,74 @@
         var participants = new HashSet<string>();
         if (recipientIds != null && recipientIds.Any())
         {
-             // 1-on-1 or Group Chat
-             // Check if it's for me
-             if (senderId != currentUserId && !recipientIds.Contains(currentUserId))
-             {
-                 return; // Not relevant to me
-             }
-             
+            // 1-on-1 or Group Chat
+            // Check if it's for me
+            if (senderId != currentUserId && !recipientIds.Contains(currentUserId))
+            {
+                return; // Not relevant to me
+            }
+
             participants = recipientIds.ToHashSet();
             participants.Add(senderId);
         }
         else
         {
             // Global
-            participants.Add("global"); 
+            participants.Add("global");
         }
 
         string convKey = (recipientIds == null || !recipientIds.Any()) ? "global" : GetConversationKey(participants);
-        
+
         var conversation = Conversations.FirstOrDefault(c => c.ConversationId == convKey);
-        
+
         // If new conversation, create it
         if (conversation == null)
         {
-            conversation = new ConversationViewModel 
-            { 
-                 ConversationId = convKey,
-                 ParticipantIds = participants.Where(p => p != "global").ToList(),
-                 // Use the map to generate proper name immediately
-                 DisplayName = GenerateDisplayNameFromMap(participants, convKey == "global", AllUsers)
-            };
-            
+            conversation = new ConversationViewModel
+                {
+                    ConversationId = convKey,
+                    ParticipantIds = participants.Where(p => p != "global").ToList(),
+                    // Use the map to generate proper name immediately
+                    DisplayName = GenerateDisplayNameFromMap(participants, convKey == "global", AllUsers)
+                };
+
             Conversations.Add(conversation);
         }
-        
-        
+
+
         if (conversation!.Messages.Any(m => m.Timestamp == timestamp && m.SenderId == senderId && m.Message == message))
         {
-             // De-dupe if necessary?
+            // De-dupe if necessary?
         }
 
         var msg = new ChatMessage
-        {
-            User = senderName ?? senderId, // Or try to look up in AllUsers?
-            Message = message,
-            Timestamp = timestamp,
-            AttachmentUrl = attachmentUrl,
-            IsMine = senderId == currentUserId,
-            SenderId = senderId
-        };
-        
+            {
+                Id = 0,
+                User = senderName ?? senderId, // Or try to look up in AllUsers?
+                Message = message,
+                Timestamp = timestamp,
+                AttachmentUrl = attachmentUrl,
+                IsMine = senderId == currentUserId,
+                SenderId = senderId
+            };
+
         conversation.Messages.Add(msg);
-        
-        InvokeAsync(async () => 
+
+        InvokeAsync(async () =>
         {
             StateHasChanged();
-            
+
             // Notification Logic
             // If the message is NOT from me
             if (senderId != currentUserId)
             {
                 // And I am NOT looking at this conversation
                 bool isLookingAtIt = SelectedConversation != null && SelectedConversation.ConversationId == convKey;
-                
+
                 // If I am not looking at it, show toasty
                 if (!isLookingAtIt)
                 {
-                   ShowNotification($"New message from {senderName ?? "User"}", conversation!.DisplayName);
+                    ShowNotification($"New message from {senderName ?? "User"}", conversation!.DisplayName);
                 }
             }
         });
@@ -703,15 +834,15 @@
         StateHasChanged();
 
         // Auto-close after 5s
-        _ = Task.Delay(5000).ContinueWith(t => 
+        _ = Task.Delay(5000).ContinueWith(t =>
         {
-            InvokeAsync(() => 
-            {
-                if (IsNotificationVisible && CurrentNotificationId == notifId)
-                {
-                    IsNotificationVisible = false;
-                    StateHasChanged();
-                }
+            InvokeAsync(() =>
+    {
+    if (IsNotificationVisible && CurrentNotificationId == notifId)
+    {
+        IsNotificationVisible = false;
+        StateHasChanged();
+    }
             });
         });
     }
@@ -728,7 +859,7 @@
         IsNewChatMode = false;
         IsAddingParticipants = false;
     }
-    
+
     private void StartNewChat()
     {
         SelectedConversation = null;
@@ -736,7 +867,7 @@
         IsAddingParticipants = false;
         NewChatSelectedUsers.Clear();
     }
-    
+
     private void ToggleDetails()
     {
         IsDetailsOpen = !IsDetailsOpen;
@@ -745,96 +876,139 @@
     private void AddUserToCurrentChat()
     {
         IsDetailsOpen = false; // Close modal
-        
+
         if (SelectedConversation == null) return;
-        
+
         IsNewChatMode = true;
         IsAddingParticipants = true;
         NewChatSelectedUsers.Clear();
-        foreach(var p in SelectedConversation.ParticipantIds.Where(id => id != currentUserId))
+        foreach (var p in SelectedConversation.ParticipantIds.Where(id => id != currentUserId))
         {
             NewChatSelectedUsers.Add(p);
         }
         // Deselect the conversation effectively so UI switches to New Chat Mode
-        SelectedConversation = null; 
+        SelectedConversation = null;
     }
-    
+
     private void ToggleNewChatUser(string userId)
     {
         if (NewChatSelectedUsers.Contains(userId)) NewChatSelectedUsers.Remove(userId);
         else NewChatSelectedUsers.Add(userId);
     }
-    
+
     // Send
     private void Send()
     {
         if (!string.IsNullOrWhiteSpace(messageInput) && currentUserId != null)
         {
             List<string> recipients = new();
-            
+
             if (IsNewChatMode)
             {
-                 // Create new conversation
-                 recipients = NewChatSelectedUsers.ToList();
+                // Create new conversation
+                recipients = NewChatSelectedUsers.ToList();
             }
             else if (SelectedConversation != null)
             {
-                 if (SelectedConversation.ConversationId == "global")
-                 {
-                     recipients = new List<string>(); // Empty = global
-                 }
-                 else
-                 {
-                     recipients = SelectedConversation.ParticipantIds.Where(id => id != currentUserId).ToList();
-                 }
+                if (SelectedConversation.ConversationId == "global")
+                {
+                    recipients = new List<string>(); // Empty = global
+                }
+                else
+                {
+                    recipients = SelectedConversation.ParticipantIds.Where(id => id != currentUserId).ToList();
+                }
             }
             else return; // Should not happen
 
             ChatState.BroadcastMessage(currentUserId, currentUserName ?? "Unknown", messageInput, recipients, null);
             messageInput = string.Empty;
-            
-            // Optimistic grouping will happen via HandleMessageReceived (since it loops back) or we could force it here.
-            // But BroadcastMessage triggers event which we listen to.
-            
+
             if (IsNewChatMode)
             {
-                 IsNewChatMode = false; // Switch to the newly created view
-                 // We don't know the ID yet until event fires, but UI will update.
+                IsNewChatMode = false; // Switch to the newly created view
             }
         }
     }
-    
+
     private async Task UploadFile(InputFileChangeEventArgs e)
     {
         var file = e.File;
         // Same logic as before, just routing to Send
-        // ... (Omitting full upload logic re-write for brevity, assume similar) 
+        // ... (Omitting full upload logic re-write for brevity, assume similar)
         // Need to ensure recipients are set correctly.
-        
+
         if (file != null && currentUserId != null)
         {
-             // ... Upload logic ...
-             var uploadPath = Path.Combine("wwwroot", "uploads");
-             if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
-             var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.Name)}";
-             var filePath = Path.Combine(uploadPath, fileName);
-             await using var fs = new FileStream(filePath, FileMode.Create);
-             await file.OpenReadStream(10 * 1024 * 1024).CopyToAsync(fs);
-             var attachmentUrl = $"/uploads/{fileName}";
+            // ... Upload logic ...
+            var uploadPath = Path.Combine("wwwroot", "uploads");
+            if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.Name)}";
+            var filePath = Path.Combine(uploadPath, fileName);
+            await using var fs = new FileStream(filePath, FileMode.Create);
+            await file.OpenReadStream(10 * 1024 * 1024).CopyToAsync(fs);
+            var attachmentUrl = $"/uploads/{fileName}";
 
             List<string> recipients = new();
             if (selectedConversationIsGlobal()) recipients = new List<string>();
-            else if (SelectedConversation != null) recipients = SelectedConversation.ParticipantIds.Where(id => id != currentUserId).ToList();
+            else if (SelectedConversation != null) recipients = SelectedConversation.ParticipantIds.Where(id => id !=
+            currentUserId).ToList();
             else if (IsNewChatMode) recipients = NewChatSelectedUsers.ToList();
-            
-            ChatState.BroadcastMessage(currentUserId, currentUserName ?? "Unknown", $"Sent attachment: {file.Name}", recipients, attachmentUrl);
+
+            ChatState.BroadcastMessage(currentUserId, currentUserName ?? "Unknown", $"Sent attachment: {file.Name}", recipients,
+            attachmentUrl);
         }
     }
-    
+
     private bool selectedConversationIsGlobal() => SelectedConversation?.ConversationId == "global";
 
     private void HandleKeyUp(KeyboardEventArgs e)
-     {
-         if (e.Key == "Enter") Send();
-     }
+    {
+        if (e.Key == "Enter") Send();
+    }
+
+    // UI Helpers
+    private void StartEdit(ChatMessage msg)
+    {
+        msg.IsEditing = true;
+        msg.EditBuffer = msg.Message;
+    }
+
+    private void CancelEdit(ChatMessage msg)
+    {
+        msg.IsEditing = false;
+    }
+
+    private async Task SaveEdit(ChatMessage msg)
+    {
+        if (msg.EditBuffer == msg.Message)
+        {
+            msg.IsEditing = false;
+            return;
+        }
+
+        await ChatState.EditMessage(msg.Id, msg.EditBuffer);
+        msg.IsEditing = false;
+    }
+
+    private void DeleteMessage(ChatMessage msg)
+    {
+        MessageToDelete = msg;
+        IsDeleteConfirmOpen = true;
+    }
+
+    private void CancelDelete()
+    {
+        IsDeleteConfirmOpen = false;
+        MessageToDelete = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (MessageToDelete != null)
+        {
+            await ChatState.DeleteMessage(MessageToDelete.Id);
+            CancelDelete(); // Close modal logic
+        }
+    }
 }
