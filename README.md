@@ -40,7 +40,7 @@ This application provides a Teams-like user experience with features for group c
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/ChatApp.git
+   git clone https://github.com/SingularityResearch/ChatApp.git
    cd ChatApp
    ```
 
