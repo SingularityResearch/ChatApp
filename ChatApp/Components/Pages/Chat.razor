@@ -535,7 +535,7 @@
     }
     
     // Synchronous helper using the pre-fetched map
-    private string GenerateDisplayNameFromMap(HashSet<string> participantIds, bool isGlobal, Dictionary<string, string?> userMap)
+    private string GenerateDisplayNameFromMap(HashSet<string> participantIds, bool isGlobal, Dictionary<string, string> userMap)
     {
         if (isGlobal) return "General (Everyone)";
 
@@ -611,6 +611,8 @@
 
     private void HandleMessageReceived(string senderId, string senderName, string message, DateTime timestamp, string? attachmentUrl, bool _, List<string>? recipientIds)
     {
+        if (currentUserId == null) return;
+
         // 1. Determine conversation
         var participants = new HashSet<string>();
         if (recipientIds != null && recipientIds.Any())
@@ -635,7 +637,6 @@
         
         var conversation = Conversations.FirstOrDefault(c => c.ConversationId == convKey);
         
-        bool isNew = false;
         // If new conversation, create it
         if (conversation == null)
         {
@@ -648,10 +649,10 @@
             };
             
             Conversations.Add(conversation);
-            isNew = true;
         }
         
-        if (conversation.Messages.Any(m => m.Timestamp == timestamp && m.SenderId == senderId && m.Message == message))
+        
+        if (conversation!.Messages.Any(m => m.Timestamp == timestamp && m.SenderId == senderId && m.Message == message))
         {
              // De-dupe if necessary?
         }
@@ -682,7 +683,7 @@
                 // If I am not looking at it, show toasty
                 if (!isLookingAtIt)
                 {
-                   ShowNotification($"New message from {senderName ?? "User"}", conversation.DisplayName);
+                   ShowNotification($"New message from {senderName ?? "User"}", conversation!.DisplayName);
                 }
             }
         });
