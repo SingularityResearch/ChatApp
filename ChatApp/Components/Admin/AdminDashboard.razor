@@ -1,0 +1,23 @@
+@page "/admin"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+<div class="container mt-4">
+    <h1>Admin Dashboard</h1>
+    <p class="lead">Manage your application settings and users.</p>
+
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card bg-dark text-white border-secondary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-people-fill me-2"></i>User Roles</h5>
+                    <p class="card-text">Manage user roles and assignments (Groups).</p>
+                    <a href="admin/roles" class="btn btn-primary">Manage Roles</a>
+                </div>
+            </div>
+        </div>
+        <!-- Future admin features can go here -->
+    </div>
+</div>

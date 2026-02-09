@@ -285,10 +285,13 @@
         {
             var db = scope.ServiceProvider.GetRequiredService<ChatApp.Data.ApplicationDbContext>();
 
-            AllUsers = await db.Users
-            .Where(u => u.Id != currentUserId)
-            .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
+            // Filter users based on Roles
+            var visibleUsersList = await ChatState.GetVisibleUsersAsync(currentUserId);
+            AllUsers = visibleUsersList.ToDictionary(u => u.Id, u => u.UserName ?? "Unknown");
 
+            // Only fetch messages involving these users or self
+            // Note: DB query still fetches filtering by Sender/Recipient, but we might want to filter out 'Global' messages if we are hiding them.
+            // For now, let's just load history.
             var history = await db.ChatMessages
             .Include(m => m.Recipients)
             .Where(m => !m.Recipients.Any() || m.SenderId == currentUserId || m.Recipients.Any(r => r.UserId == currentUserId))
@@ -303,14 +306,22 @@
                 participants.Add(h.SenderId);
 
                 string convKey;
-                if (!h.Recipients.Any())
-                {
-                    convKey = "global";
-                }
-                else
-                {
-                    convKey = GetConversationKey(participants);
-                }
+                bool isGlobal = !h.Recipients.Any();
+                
+                // If global messages are effectively disabled/hidden for isolation, we should skip them
+                // UNLESS we want to allow 'Global' for everyone? 
+                // Requirement: "Users should only be able to see other users that are in their group."
+                // This implies Global Chat (everyone) breaks restriction.
+                if (isGlobal) continue; 
+
+                // Also check if we can see the participants.
+                // If I am in a conversation with someone I can no longer see (removed from role), should I see the history?
+                // Probably yes, history is history. But new messages?
+                // For "LoadData", let's keep history if it exists, BUT
+                // We need to ensure we don't crash if user map misses them.
+                // AllUsers only has visible users.
+                
+                convKey = GetConversationKey(participants);
 
                 var conversation = Conversations.FirstOrDefault(c => c.ConversationId == convKey);
                 if (conversation == null)
@@ -319,7 +330,7 @@
                         {
                             ConversationId = convKey,
                             ParticipantIds = participants.ToList(),
-                            DisplayName = GenerateDisplayNameFromMap(participants, convKey == "global", AllUsers)
+                            DisplayName = GenerateDisplayNameFromMap(participants, AllUsers)
                         };
                     Conversations.Add(conversation);
                 }
@@ -327,7 +338,7 @@
                 conversation.Messages.Add(new ChatMessage
                     {
                         Id = h.Id,
-                        User = AllUsers.TryGetValue(h.SenderId, out var name) ? name : h.SenderName,
+                        User = AllUsers.TryGetValue(h.SenderId, out var name) ? name : (h.SenderId == currentUserId ? currentUserName : "Unknown User"), // Fallback if user not visible
                         Message = h.Message,
                         Timestamp = h.Timestamp,
                         AttachmentUrl = h.AttachmentUrl,
@@ -349,11 +360,8 @@
         return string.Join("|", sorted);
     }
 
-    private string GenerateDisplayNameFromMap(HashSet<string> participantIds, bool isGlobal, Dictionary<string, string>
-    userMap)
+    private string GenerateDisplayNameFromMap(HashSet<string> participantIds, Dictionary<string, string> userMap)
     {
-        if (isGlobal) return "General (Everyone)";
-
         var others = participantIds.Where(u => u != currentUserId).ToList();
 
         if (others.Count == 0) return "Just You";
@@ -379,6 +387,12 @@
     {
         if (currentUserId == null) return;
 
+        // Restriction: Ignore Global Messages
+        if (recipientIds == null || !recipientIds.Any()) return; 
+
+        // Restriction: Ignore messages from non-visible users (unless it's me)
+        if (senderId != currentUserId && !AllUsers.ContainsKey(senderId)) return;
+
         var participants = new HashSet<string>();
         if (recipientIds != null && recipientIds.Any())
         {
@@ -390,12 +404,8 @@
             participants = recipientIds.ToHashSet();
             participants.Add(senderId);
         }
-        else
-        {
-            participants.Add("global");
-        }
 
-        string convKey = (recipientIds == null || !recipientIds.Any()) ? "global" : GetConversationKey(participants);
+        string convKey = GetConversationKey(participants);
 
         var conversation = Conversations.FirstOrDefault(c => c.ConversationId == convKey);
 
@@ -404,8 +414,8 @@
             conversation = new ConversationViewModel
                 {
                     ConversationId = convKey,
-                    ParticipantIds = participants.Where(p => p != "global").ToList(),
-                    DisplayName = GenerateDisplayNameFromMap(participants, convKey == "global", AllUsers)
+                    ParticipantIds = participants.ToList(),
+                    DisplayName = GenerateDisplayNameFromMap(participants, AllUsers)
                 };
 
             Conversations.Add(conversation);
@@ -537,9 +547,10 @@
             }
             else if (SelectedConversation != null)
             {
+                // Safety check: Global should be gone, but if it exists, don't send anything or send as DM
                 if (SelectedConversation.ConversationId == "global")
                 {
-                    recipients = new List<string>();
+                    return; // Disabled
                 }
                 else
                 {
@@ -572,20 +583,25 @@
             var attachmentUrl = $"/uploads/{fileName}";
 
             List<string> recipients = new();
-            if (selectedConversationIsGlobal()) recipients = new List<string>();
-            else if (SelectedConversation != null) recipients = SelectedConversation.ParticipantIds.Where(id => id !=
-            currentUserId).ToList();
+            if (SelectedConversation != null) 
+            {
+                 recipients = SelectedConversation.ParticipantIds.Where(id => id != currentUserId).ToList();
+            }
             // Note: If uploading in New Chat, we need specific logic? Assuming works same as send.
-            else if (IsNewChatMode) recipients = NewChatSelectedUsers.ToList();
+            else if (IsNewChatMode) 
+            {
+                recipients = NewChatSelectedUsers.ToList();
+            }
 
-            ChatState.BroadcastMessage(currentUserId, currentUserName ?? "Unknown", $"Sent attachment: {file.Name}", recipients,
-            attachmentUrl);
+            if (recipients.Count > 0)
+            {
+                ChatState.BroadcastMessage(currentUserId, currentUserName ?? "Unknown", $"Sent attachment: {file.Name}", recipients,
+                attachmentUrl);
+            }
 
             if (IsNewChatMode) IsNewChatMode = false;
         }
     }
-
-    private bool selectedConversationIsGlobal() => SelectedConversation?.ConversationId == "global";
 
     // UI Helpers for Edit/Delete
     private void StartEdit(ChatMessage msg)

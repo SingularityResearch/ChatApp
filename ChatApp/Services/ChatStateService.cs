@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Identity;
 using ChatApp.Data;
 
 namespace ChatApp.Services;
@@ -42,6 +43,38 @@ public class ChatStateService
     public Dictionary<string, string> GetOnlineUsers()
     {
         return _onlineUsers.ToDictionary(k => k.Key, v => v.Value);
+    }
+
+    public async Task<List<ApplicationUser>> GetVisibleUsersAsync(string userId)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null) return new List<ApplicationUser>();
+
+        var roles = await userManager.GetRolesAsync(user);
+
+        // Strategy: If user has no roles, they see no one (or maybe only admins? let's stick to strict isolation)
+        // Strictly: share a role.
+
+        if (!roles.Any()) return new List<ApplicationUser>();
+
+        var visibleUsers = new HashSet<string>();
+        var results = new List<ApplicationUser>();
+
+        foreach (var role in roles)
+        {
+            var usersInRole = await userManager.GetUsersInRoleAsync(role);
+            foreach (var u in usersInRole)
+            {
+                if (u.Id != userId && visibleUsers.Add(u.Id))
+                {
+                    results.Add(u);
+                }
+            }
+        }
+        return results;
     }
 
     // This method simulates the Hub's SendMessage broadcasting

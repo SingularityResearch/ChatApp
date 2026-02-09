@@ -1,0 +1,222 @@
+@page "/admin/roles"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using ChatApp.Data
+@attribute [Authorize(Roles = "Admin")]
+@inject RoleManager<IdentityRole> RoleManager
+@inject UserManager<ApplicationUser> UserManager
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <h3>Role Management</h3>
+
+    <div class="row">
+        <!-- Role List -->
+        <div class="col-md-6">
+            <div class="card bg-dark text-white mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Roles</h5>
+                    <div class="input-group" style="width: 200px;">
+                        <input type="text" class="form-control form-control-sm" placeholder="New Role Name" @bind="NewRoleName" />
+                        <button class="btn btn-sm btn-primary" @onclick="CreateRole">Add</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var role in Roles)
+                        {
+                            <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center @(SelectedRole == role ? "active" : "")" 
+                                @onclick="() => SelectRole(role)" style="cursor: pointer;">
+                                
+                                @if (EditingRoleId == role.Id)
+                                {
+                                    <div class="input-group input-group-sm" @onclick:stopPropagation="true">
+                                        <input type="text" class="form-control" @bind="EditingRoleName" />
+                                        <button class="btn btn-success" @onclick="SaveRoleEdit">Save</button>
+                                        <button class="btn btn-secondary" @onclick="CancelRoleEdit">Cancel</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span>@role.Name</span>
+                                    <div>
+                                        @if(role.Name != "Admin")
+                                        {
+                                            <button class="btn btn-sm btn-warning py-0 me-1" @onclick="() => StartRoleEdit(role)" @onclick:stopPropagation="true">Edit</button>
+                                            <button class="btn btn-sm btn-danger py-0" @onclick="() => DeleteRole(role)" @onclick:stopPropagation="true">×</button>
+                                        }
+                                    </div>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Assignment -->
+        <div class="col-md-6">
+            @if (SelectedRole != null)
+            {
+                    <div class="card bg-dark text-white">
+                        <div class="card-header">
+                            <h5 class="mb-0">Users in @SelectedRole.Name</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Add User to Role</label>
+                                <div class="input-group">
+                                    <select class="form-select bg-secondary text-white border-0" @bind="SelectedUserIdToAdd">
+                                        <option value="">Select User...</option>
+                                    @foreach (var user in AllUsers.Where(u => !UsersInRole.Contains(u)))
+                                    {
+                                                <option value="@user.Id">@user.UserName</option>
+                                    }
+                                    </select>
+                                    <button class="btn btn-success" @onclick="AddUserToRole" disabled="@string.IsNullOrEmpty(SelectedUserIdToAdd)">Add</button>
+                                </div>
+                            </div>
+
+                            <hr class="border-secondary"/>
+
+                            <h6>Current Members</h6>
+                        @if (UsersInRole.Any())
+                        {
+                                    <ul class="list-group list-group-flush">
+                                @foreach (var user in UsersInRole)
+                                {
+                                                <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center">
+                                                    <span>@user.UserName <small class="text-muted ms-2">@user.Email</small></span>
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveUserFromRole(user)">Remove</button>
+                                                </li>
+                                }
+                                    </ul>
+                        }
+                        else
+                        {
+                                    <p class="text-muted">No users in this role.</p>
+                        }
+                        </div>
+                    </div>
+            }
+            else
+            {
+                    <div class="alert alert-info">Select a role to manage users.</div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<IdentityRole> Roles = new();
+    private List<ApplicationUser> AllUsers = new();
+    private List<ApplicationUser> UsersInRole = new();
+
+    private IdentityRole? SelectedRole;
+    private string NewRoleName = "";
+    private string SelectedUserIdToAdd = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoles();
+        AllUsers = await UserManager.Users.ToListAsync();
+    }
+
+    private async Task LoadRoles()
+    {
+        Roles = await RoleManager.Roles.OrderBy(r => r.Name).ToListAsync();
+    }
+
+    private async Task CreateRole()
+    {
+        if (!string.IsNullOrWhiteSpace(NewRoleName))
+        {
+            await RoleManager.CreateAsync(new IdentityRole(NewRoleName));
+            NewRoleName = "";
+            await LoadRoles();
+        }
+    }
+
+    private async Task DeleteRole(IdentityRole role)
+    {
+        if (role.Name == "Admin") return; // Prevent deleting Admin
+        await RoleManager.DeleteAsync(role);
+        if (SelectedRole == role) SelectedRole = null;
+        await LoadRoles();
+    }
+
+    // Edit Logic
+    private string? EditingRoleId;
+    private string EditingRoleName = "";
+
+    private void StartRoleEdit(IdentityRole role)
+    {
+        EditingRoleId = role.Id;
+        EditingRoleName = role.Name ?? "";
+    }
+
+    private void CancelRoleEdit()
+    {
+        EditingRoleId = null;
+        EditingRoleName = "";
+    }
+
+    private async Task SaveRoleEdit()
+    {
+        if (!string.IsNullOrWhiteSpace(EditingRoleName) && EditingRoleId != null)
+        {
+            var role = await RoleManager.FindByIdAsync(EditingRoleId);
+            if (role != null)
+            {
+                role.Name = EditingRoleName;
+                await RoleManager.UpdateAsync(role);
+                await LoadRoles();
+                
+                // If the edited role was selected, refresh the header
+                if (SelectedRole?.Id == role.Id)
+                {
+                    SelectedRole = role; 
+                }
+            }
+            CancelRoleEdit();
+        }
+    }
+
+    private async Task SelectRole(IdentityRole role)
+    {
+        // Don't select if clicking inside edit controls
+        if (EditingRoleId != null) return;
+
+        SelectedRole = role;
+        UsersInRole.Clear();
+
+        // Fetch users in role
+        // Note: UserManager.GetUsersInRoleAsync returns IList<ApplicationUser>
+        var users = await UserManager.GetUsersInRoleAsync(role.Name!);
+        UsersInRole = users.ToList();
+        SelectedUserIdToAdd = "";
+    }
+
+    private async Task AddUserToRole()
+    {
+        if (SelectedRole != null && !string.IsNullOrEmpty(SelectedUserIdToAdd))
+        {
+            var user = AllUsers.FirstOrDefault(u => u.Id == SelectedUserIdToAdd);
+            if (user != null)
+            {
+                await UserManager.AddToRoleAsync(user, SelectedRole.Name!);
+                await SelectRole(SelectedRole); // Refresh
+            }
+        }
+    }
+
+    private async Task RemoveUserFromRole(ApplicationUser user)
+    {
+        if (SelectedRole != null)
+        {
+            await UserManager.RemoveFromRoleAsync(user, SelectedRole.Name!);
+            await SelectRole(SelectedRole); // Refresh
+        }
+    }
+}
