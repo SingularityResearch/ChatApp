@@ -15,11 +15,11 @@
     @foreach (var msg in Conversation.Messages)
     {
         <MessageBubble Message="msg" IsGroup="@Conversation.IsGroup" OnStartEdit="OnStartEdit" OnDelete="OnDelete"
-            OnSaveEdit="OnSaveEdit" OnCancelEdit="OnCancelEdit" />
+            OnSaveEdit="OnSaveEdit" OnCancelEdit="OnCancelEdit" OnReply="OnReply" OnToggleReaction="OnToggleReaction" />
     }
 </div>
 
-<ChatInput IsConnected="@IsConnected" OnSend="OnSend" OnFileChange="OnFileUpload" />
+<ChatInput @ref="chatInput" IsConnected="@IsConnected" OnSend="OnSend" OnFileChange="OnFileUpload" />
 
 @code {
     [Parameter] public ConversationViewModel Conversation { get; set; } = new();
@@ -33,6 +33,26 @@
     [Parameter] public EventCallback<ChatMessage> OnDelete { get; set; }
     [Parameter] public EventCallback<ChatMessage> OnSaveEdit { get; set; }
     [Parameter] public EventCallback<ChatMessage> OnCancelEdit { get; set; }
+    [Parameter] public EventCallback<ChatMessage> OnReply { get; set; }
+    [Parameter] public EventCallback<(ChatMessage, string)> OnToggleReaction { get; set; }
+
+    private ChatInput? chatInput;
+
+    public async Task SetInputAsync(string text)
+    {
+        if (chatInput != null)
+        {
+            await chatInput.SetInputAsync(text);
+        }
+    }
+
+    public async Task SetReplyMessageAsync(ChatMessage msg)
+    {
+        if (chatInput != null)
+        {
+            await chatInput.SetReplyMessageAsync(msg);
+        }
+    }
 }
 
 <style>

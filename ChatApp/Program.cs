@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.FluentUI.AspNetCore.Components;
 using ChatApp.Components;
 using ChatApp.Components.Account;
 using ChatApp.Data;
@@ -11,10 +12,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddFluentUIComponents();
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ChatApp.Services.ChatStateService>();
 builder.Services.AddSingleton<ChatApp.Services.IChatMessageService, ChatApp.Services.ChatMessageService>();
+builder.Services.AddSingleton<ChatApp.Services.IEmojiService, ChatApp.Services.EmojiService>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCascadingAuthenticationState();

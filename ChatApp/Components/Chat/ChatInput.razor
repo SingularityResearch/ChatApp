@@ -1,9 +1,118 @@
+@using ChatApp.Models
+@using Microsoft.FluentUI.AspNetCore.Components
+@inject ChatApp.Services.IEmojiService EmojiService
+@inject IJSRuntime JSRuntime
+
 <div class="chat-input-area @Class">
-    <div class="input-group">
-        <InputFile OnChange="OnFileChange" class="form-control" style="max-width: 200px" />
-        <input type="text" class="form-control" placeholder="@Placeholder" @bind="MessageInput" @bind:event="oninput"
-        @onkeyup="HandleKeyUp" />
-        <button class="btn btn-primary" @onclick="Send" disabled="@(!IsConnected)">@ButtonText</button>
+    @if (_replyingToMessage != null)
+    {
+        <div class="reply-preview-box d-flex justify-content-between align-items-stretch mb-2 rounded"
+            style="background-color: var(--hover-bg, rgba(255, 255, 255, 0.05)); border-left: 3px solid var(--accent-light, #0078d4);">
+            <div class="reply-preview-content p-2" style="flex: 1; overflow: hidden;">
+                <small class="d-block text-muted mb-1 fw-bold">Replying to @_replyingToMessage.User at
+                    @_replyingToMessage.Timestamp.ToShortTimeString()</small>
+                <div class="text-truncate" style="font-size: 0.9em; opacity: 0.9; max-height: 40px; overflow: hidden;">
+                    @{
+                        var parts = ParseMessageInline(_replyingToMessage.Message);
+                        foreach (var part in parts)
+                        {
+                            if (part.IsEmoji && part.Emoji != null)
+                            {
+                                <span class="d-inline-flex align-items-center" style="vertical-align: middle;">
+                                    <FluentEmoji Value="@part.Emoji" Width="16px" />
+                                </span>
+                            }
+                            else
+                            {
+                                <span>@part.Text</span>
+                            }
+                        }
+                    }
+                </div>
+            </div>
+            <button class="btn btn-icon text-muted p-2 m-0" style="border-radius: 0 4px 4px 0;"
+            @onclick="() => _replyingToMessage = null" type="button" title="Cancel Reply">
+                <i class="bi bi-x-lg fs-5"></i>
+            </button>
+        </div>
+    }
+
+    <div class="chat-input-wrapper d-flex align-items-center">
+        <div class="position-relative w-100 d-flex align-items-center">
+            <textarea @ref="inputField" class="chat-input-field flex-grow-1 py-1" placeholder="@Placeholder"
+            @bind="MessageInput" @bind:event="oninput" @onkeydown="HandleKeyDown" rows="1"
+                style="resize: none; overflow-y: auto; max-height: 150px; min-height: 36px; line-height: 1.5;"></textarea>
+
+            @if (ShowInlineSuggestions && InlineSuggestions.Any())
+            {
+                <div class="emoji-picker-backdrop" @onclick="() => ShowInlineSuggestions = false"
+                    style="background: transparent;"></div>
+                <div class="inline-emoji-suggestions popup shadow rounded p-2" id="inline-emoji-container">
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var emoji in InlineSuggestions)
+                        {
+                            <button class="btn btn-light btn-sm emoji-btn m-0" style="width: 32px; height: 32px; padding: 4px;"
+                            @onclick="() => InsertInlineEmoji(emoji)" title="@emoji.Name" type="button">
+                                <FluentEmoji Value="@emoji" Width="24px" />
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="chat-input-actions d-flex align-items-center">
+            <button class="btn btn-icon btn-sm text-light" type="button" title="Rich Text Editor"
+            @onclick="OpenRichTextEditor">
+                <i class="bi bi-fonts"></i>
+            </button>
+
+            <div class="position-relative d-inline-block">
+                <button class="btn btn-icon btn-sm text-light" @onclick="ToggleEmojiPicker" type="button"
+                    title="Emojis">
+                    <i class="bi bi-emoji-smile"></i>
+                </button>
+                @if (ShowEmojiPicker)
+                {
+                    <div class="emoji-picker-backdrop" @onclick="() => ShowEmojiPicker = false"></div>
+                    <div class="emoji-picker popup shadow rounded p-2" id="emoji-picker-container"
+                        style="right: 0; left: auto; bottom: 120%;">
+                        <div class="mb-2">
+                            <input type="text" class="form-control form-control-sm text-white"
+                                style="background-color: var(--mica-alt-bg);" placeholder="Search emojis..."
+                            @bind="emojiSearchTerm" @bind:event="oninput" />
+                        </div>
+                        <div class="emoji-list-viewport" style="height: 300px; overflow-y: auto;">
+                            <Virtualize Items="GetEmojiChunks()" Context="row" ItemSize="34">
+                                <div class="emoji-row">
+                                    @foreach (var emoji in row)
+                                    {
+                                        <button class="btn btn-light btn-sm emoji-btn m-0"
+                                            style="width: 32px; height: 32px; padding: 4px;" @onclick="() => InsertEmoji(emoji)"
+                                            title="@emoji.Name" type="button">
+                                            <FluentEmoji Value="@emoji" Width="24px" />
+                                        </button>
+                                    }
+                                </div>
+                            </Virtualize>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <label for="chat-file-upload" class="btn btn-icon btn-sm text-light m-0" title="Add Attachment"
+                style="cursor: pointer;">
+                <i class="bi bi-plus-lg"></i>
+            </label>
+            <InputFile OnChange="OnFileChange" id="chat-file-upload" class="d-none" />
+
+            <div class="action-divider mx-1"></div>
+
+            <button class="btn btn-icon btn-sm text-light" type="button" title="Send" @onclick="Send"
+                disabled="@(!IsConnected || string.IsNullOrWhiteSpace(_messageInput))">
+                <i class="bi bi-send"></i>
+            </button>
+        </div>
     </div>
     @ChildContent
 </div>
@@ -17,20 +126,230 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string Class { get; set; } = "";
 
-    private string MessageInput { get; set; } = "";
+    private ElementReference inputField;
+    private string _messageInput = "";
+    private ChatMessage? _replyingToMessage = null;
 
-    private async Task Send()
+    public async Task SetInputAsync(string text)
     {
-        if (!string.IsNullOrWhiteSpace(MessageInput))
+        _messageInput = text;
+        StateHasChanged();
+        await inputField.FocusAsync();
+    }
+
+    public async Task SetReplyMessageAsync(ChatMessage msg)
+    {
+        _replyingToMessage = msg;
+        StateHasChanged();
+        await inputField.FocusAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            await OnSend.InvokeAsync(MessageInput);
-            MessageInput = string.Empty;
+            await JSRuntime.InvokeVoidAsync("eval", @"
+var tx = document.querySelector('.chat-input-field');
+if (tx) {
+tx.addEventListener('input', function() {
+this.style.height = 'auto';
+this.style.height = (this.scrollHeight) + 'px';
+});
+}
+");
         }
     }
 
-    private async Task HandleKeyUp(KeyboardEventArgs e)
+    private string MessageInput
     {
-        if (e.Key == "Enter") await Send();
+        get => _messageInput;
+        set
+        {
+            if (_messageInput != value)
+            {
+                _messageInput = value;
+                CheckForInlineSuggestions();
+            }
+        }
+    }
+
+    private bool ShowEmojiPicker { get; set; } = false;
+    private string emojiSearchTerm { get; set; } = "";
+
+    // Inline Suggestion State
+    private bool ShowInlineSuggestions { get; set; } = false;
+    private List<Microsoft.FluentUI.AspNetCore.Components.Emoji> InlineSuggestions { get; set; } = new();
+    private string _currentSearchWord = "";
+
+    private List<List<Microsoft.FluentUI.AspNetCore.Components.Emoji>> GetEmojiChunks()
+    {
+        int chunkSize = 8;
+        var emojis = EmojiService.AllEmojis.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(emojiSearchTerm))
+        {
+            emojis = emojis.Where(e => e.Name.Contains(emojiSearchTerm, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return emojis
+        .Select((x, i) => new { Index = i, Value = x })
+        .GroupBy(x => x.Index / chunkSize)
+        .Select(x => x.Select(v => v.Value).ToList())
+        .ToList();
+    }
+
+    private void ToggleEmojiPicker()
+    {
+        ShowEmojiPicker = !ShowEmojiPicker;
+    }
+
+    private void OpenRichTextEditor()
+    {
+        // Placeholder for the rich text editor overlay to be implemented later
+        // Currently mapped to the A/pencil button as requested
+    }
+
+    private void InsertEmoji(Microsoft.FluentUI.AspNetCore.Components.Emoji emoji)
+    {
+        string unicode = EmojiService.GetUnicode(emoji.Name);
+        string insertText = string.IsNullOrEmpty(unicode)
+        ? EmojiService.GetShortcode(emoji)
+        : unicode;
+
+        if (!string.IsNullOrEmpty(MessageInput) && !MessageInput.EndsWith(" "))
+        {
+            _messageInput += " "; // Bypass property setter to avoid triggering search loop
+        }
+        _messageInput += insertText + " ";
+        ShowEmojiPicker = false;
+    }
+
+    private void CheckForInlineSuggestions()
+    {
+        if (string.IsNullOrWhiteSpace(_messageInput))
+        {
+            ShowInlineSuggestions = false;
+            return;
+        }
+
+        // Get the last word being typed
+        var words = _messageInput.Split(new[] { ' ', '\n' });
+        _currentSearchWord = words.LastOrDefault() ?? "";
+
+        // Only search if the word is at least 3 letters to prevent noise
+        if (_currentSearchWord.Length >= 3)
+        {
+            InlineSuggestions = EmojiService.AllEmojis
+            .Where(e => e.Name.Contains(_currentSearchWord, StringComparison.OrdinalIgnoreCase))
+            .Take(10) // Limit to top 10 suggestions to not overwhelm UI
+            .ToList();
+
+            ShowInlineSuggestions = InlineSuggestions.Any();
+        }
+        else
+        {
+            ShowInlineSuggestions = false;
+        }
+    }
+
+    private void InsertInlineEmoji(Microsoft.FluentUI.AspNetCore.Components.Emoji emoji)
+    {
+        string unicode = EmojiService.GetUnicode(emoji.Name);
+        string insertText = string.IsNullOrEmpty(unicode)
+        ? EmojiService.GetShortcode(emoji)
+        : unicode;
+
+        // Replace the last word (_currentSearchWord) with the emoji
+        int lastIndex = _messageInput.LastIndexOf(_currentSearchWord, StringComparison.OrdinalIgnoreCase);
+        if (lastIndex >= 0)
+        {
+            // Remove the typed keyword and replace with emoji
+            _messageInput = _messageInput.Remove(lastIndex, _currentSearchWord.Length).Insert(lastIndex, insertText + " ");
+        }
+
+        ShowInlineSuggestions = false;
+    }
+
+    private async Task Send()
+    {
+        if (!string.IsNullOrWhiteSpace(_messageInput))
+        {
+            string finalMessage = _messageInput;
+            if (_replyingToMessage != null)
+            {
+                var quoteLines = _replyingToMessage.Message.Split('\n').Select(l => $"> {l}");
+                string quoteHeader = $"> {_replyingToMessage.User} • {_replyingToMessage.Timestamp.ToShortTimeString()}:\n";
+                string quoteText = quoteHeader + string.Join("\n", quoteLines) + "\n\n";
+                finalMessage = quoteText + finalMessage;
+            }
+
+            await OnSend.InvokeAsync(finalMessage);
+            _messageInput = string.Empty;
+            _replyingToMessage = null;
+            ShowInlineSuggestions = false;
+            // Reset textarea height after sending
+            await JSRuntime.InvokeVoidAsync("eval", "document.querySelector('.chat-input-field').style.height = 'auto'");
+        }
+    }
+
+    public class MessageSegment
+    {
+        public string Text { get; set; } = "";
+        public bool IsEmoji { get; set; }
+        public Microsoft.FluentUI.AspNetCore.Components.Emoji? Emoji { get; set; }
+    }
+
+    private List<MessageSegment> ParseMessageInline(string? text)
+    {
+        var segments = new List<MessageSegment>();
+        if (string.IsNullOrEmpty(text)) return segments;
+
+        var parts = text.Split(new[] { ' ', '\n' });
+        var currentText = new System.Text.StringBuilder();
+
+        for (int i = 0; i < parts.Length; i++)
+        {
+            var p = parts[i];
+            Microsoft.FluentUI.AspNetCore.Components.Emoji? dynamicEmoji = null;
+
+            if (p.StartsWith(":") && p.EndsWith(":") && p.Length > 2)
+            {
+                dynamicEmoji = EmojiService.GetEmoji(p);
+            }
+
+            if (dynamicEmoji != null)
+            {
+                if (currentText.Length > 0)
+                {
+                    segments.Add(new MessageSegment { Text = currentText.ToString() });
+                    currentText.Clear();
+                }
+                segments.Add(new MessageSegment { Text = p, IsEmoji = true, Emoji = dynamicEmoji });
+                if (i < parts.Length - 1) currentText.Append(" ");
+            }
+            else
+            {
+                currentText.Append(p);
+                if (i < parts.Length - 1) currentText.Append(" ");
+            }
+        }
+        if (currentText.Length > 0)
+        {
+            segments.Add(new MessageSegment { Text = currentText.ToString() });
+        }
+        return segments;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await Send();
+        }
+        else if (e.Key == "Escape")
+        {
+            ShowInlineSuggestions = false;
+        }
     }
 }
 
@@ -40,5 +359,117 @@
         background-color: var(--mica-alt-bg, #202020);
         /* Fallback */
         border-top: 1px solid var(--card-border, #333);
+        position: relative;
+    }
+
+    .chat-input-wrapper {
+        background-color: var(--card-bg, #2b2b2b);
+        border: 1px solid var(--card-border, #444);
+        border-radius: 6px;
+        padding: 4px 8px;
+        transition: border-color 0.2s;
+    }
+
+    .chat-input-wrapper:focus-within {
+        border-color: var(--accent-color, #0078d4);
+    }
+
+    .chat-input-field {
+        background: transparent;
+        border: none;
+        color: var(--text-primary, #ffffff);
+        padding: 8px;
+        outline: none;
+        box-shadow: none;
+        min-width: 0;
+    }
+
+    .chat-input-field:focus {
+        background: transparent;
+        color: var(--text-primary, #ffffff);
+        outline: none;
+        box-shadow: none;
+    }
+
+    .chat-input-actions {
+        gap: 8px;
+        padding-right: 4px;
+    }
+
+    .btn-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 1.25rem;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+    .btn-icon:hover {
+        background-color: var(--hover-bg, rgba(255, 255, 255, 0.1));
+    }
+
+    .action-divider {
+        width: 1px;
+        height: 24px;
+        background-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .emoji-picker-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 999;
+        cursor: default;
+    }
+
+    .emoji-picker {
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        margin-bottom: 10px;
+        background-color: var(--card-bg, #2b2b2b);
+        border: 1px solid var(--card-border, #444);
+        width: 300px;
+        /* Tightly wraps 8 emojis * 32px + padding */
+        z-index: 1000;
+    }
+
+    .emoji-row {
+        display: grid;
+        grid-template-columns: repeat(8, 32px);
+        gap: 2px;
+        justify-content: center;
+        margin-bottom: 2px;
+    }
+
+    .emoji-btn {
+        background: transparent;
+        border: none;
+        padding: 4px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .emoji-btn:hover {
+        background-color: var(--hover-bg, rgba(255, 255, 255, 0.1));
+    }
+
+    .inline-emoji-suggestions {
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        margin-bottom: 5px;
+        background-color: var(--card-bg, #2b2b2b);
+        border: 1px solid var(--card-border, #444);
+        max-width: 100%;
+        z-index: 1001;
     }
 </style>

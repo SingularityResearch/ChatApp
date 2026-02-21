@@ -21,6 +21,9 @@ public class ChatMessage
     // Navigation property for recipients (if private/group)
     // If empty, it's a broadcast to all
     public List<ChatRecipient> Recipients { get; set; } = new();
+
+    // Navigation property for message reactions
+    public List<MessageReaction> Reactions { get; set; } = new();
 }
 
 public class ChatRecipient
@@ -33,4 +36,19 @@ public class ChatRecipient
 
     [Required]
     public string UserId { get; set; } = string.Empty;
+}
+
+public class MessageReaction
+{
+    public int Id { get; set; }
+
+    public int ChatMessageId { get; set; }
+    [ForeignKey("ChatMessageId")]
+    public ChatMessage? ChatMessage { get; set; }
+
+    [Required]
+    public string UserId { get; set; } = string.Empty;
+
+    [Required]
+    public string Emoji { get; set; } = string.Empty;
 }

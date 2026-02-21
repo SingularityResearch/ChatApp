@@ -127,4 +127,29 @@ public class ChatHub : Hub
             await Clients.All.SendAsync("MessageDeleted", messageId);
         }
     }
+
+    public async Task AddReaction(int messageId, string emoji)
+    {
+        var currentUserId = Context.UserIdentifier;
+        if (currentUserId == null) return;
+        var userName = Context.User?.Identity?.Name ?? "User";
+
+        bool success = await _chatMessageService.AddReactionAsync(messageId, currentUserId, emoji);
+        if (success)
+        {
+            await Clients.All.SendAsync("ReactionAdded", messageId, currentUserId, userName, emoji);
+        }
+    }
+
+    public async Task RemoveReaction(int messageId, string emoji)
+    {
+        var currentUserId = Context.UserIdentifier;
+        if (currentUserId == null) return;
+
+        bool success = await _chatMessageService.RemoveReactionAsync(messageId, currentUserId, emoji);
+        if (success)
+        {
+            await Clients.All.SendAsync("ReactionRemoved", messageId, currentUserId, emoji);
+        }
+    }
 }

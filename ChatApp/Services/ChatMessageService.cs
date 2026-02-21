@@ -12,6 +12,8 @@ public interface IChatMessageService
     Task<List<Data.ChatMessage>> GetMessageHistoryAsync(string currentUserId);
     Task<List<UserActivityDto>> GetUserActivityReportAsync();
     Task<List<UserMessageDetailDto>> GetUserMessageDetailsAsync(string userId);
+    Task<bool> AddReactionAsync(int messageId, string userId, string emoji);
+    Task<bool> RemoveReactionAsync(int messageId, string userId, string emoji);
 }
 
 public class ChatMessageService : IChatMessageService
@@ -77,6 +79,52 @@ public class ChatMessageService : IChatMessageService
         return false;
     }
 
+    public async Task<bool> AddReactionAsync(int messageId, string userId, string emoji)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        // Check if message exists
+        var msgExists = await db.ChatMessages.AnyAsync(m => m.Id == messageId);
+        if (!msgExists) return false;
+
+        // Check if reaction already exists
+        var existing = await db.MessageReactions
+            .SingleOrDefaultAsync(r => r.ChatMessageId == messageId && r.UserId == userId && r.Emoji == emoji);
+
+        if (existing == null)
+        {
+            db.MessageReactions.Add(new MessageReaction
+            {
+                ChatMessageId = messageId,
+                UserId = userId,
+                Emoji = emoji
+            });
+            await db.SaveChangesAsync();
+            return true;
+        }
+
+        return false;
+    }
+
+    public async Task<bool> RemoveReactionAsync(int messageId, string userId, string emoji)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var existing = await db.MessageReactions
+            .SingleOrDefaultAsync(r => r.ChatMessageId == messageId && r.UserId == userId && r.Emoji == emoji);
+
+        if (existing != null)
+        {
+            db.MessageReactions.Remove(existing);
+            await db.SaveChangesAsync();
+            return true;
+        }
+
+        return false;
+    }
+
     public async Task<List<Data.ChatMessage>> GetMessageHistoryAsync(string currentUserId)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -84,6 +132,7 @@ public class ChatMessageService : IChatMessageService
 
         var history = await db.ChatMessages
             .Include(m => m.Recipients)
+            .Include(m => m.Reactions)
             .Where(m => !m.Recipients.Any() || m.SenderId == currentUserId || m.Recipients.Any(r => r.UserId == currentUserId))
             .OrderBy(m => m.Timestamp)
             .ToListAsync();

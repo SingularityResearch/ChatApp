@@ -12,6 +12,8 @@
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IChatMessageService ChatMessageService
 @inject IJSRuntime JSRuntime
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<ChatApp.Data.ApplicationUser> UserManager
 @attribute [Authorize]
 @implements IAsyncDisposable
 
@@ -33,9 +35,10 @@
         }
         else if (SelectedConversation != null)
         {
-            <ActiveChatView Conversation="SelectedConversation" IsConnected="IsConnected" OnToggleDetails="ToggleDetails"
-                OnSend="HandleSend" OnFileUpload="OnFileUpload" OnStartEdit="StartEdit" OnDelete="DeleteMessage"
-                OnSaveEdit="SaveEdit" OnCancelEdit="CancelEdit" />
+            <ActiveChatView @ref="activeChatView" Conversation="SelectedConversation" IsConnected="IsConnected"
+                OnToggleDetails="ToggleDetails" OnSend="HandleSend" OnFileUpload="OnFileUpload" OnStartEdit="StartEdit"
+                OnDelete="DeleteMessage" OnSaveEdit="SaveEdit" OnCancelEdit="CancelEdit" OnReply="HandleReply"
+                OnToggleReaction="HandleToggleReaction" />
 
             <ChatDetailsModal IsOpen="IsDetailsOpen" Conversation="SelectedConversation" AllUsers="AllUsers"
                 OnlineUsers="OnlineUsers" CurrentUserId="@currentUserId" OnClose="ToggleDetails"
@@ -249,6 +252,8 @@
         HandleMessageReceived);
         _hubConnection.On<int, string>("MessageEdited", HandleMessageEdited);
         _hubConnection.On<int>("MessageDeleted", HandleMessageDeleted);
+        _hubConnection.On<int, string, string, string>("ReactionAdded", HandleReactionAdded);
+        _hubConnection.On<int, string, string>("ReactionRemoved", HandleReactionRemoved);
 
         await _hubConnection.StartAsync();
     }
@@ -310,6 +315,44 @@
         });
     }
 
+    private void HandleReactionAdded(int messageId, string userId, string userName, string emoji)
+    {
+        InvokeAsync(() =>
+        {
+            foreach (var conv in Conversations)
+            {
+                var msg = conv.Messages.FirstOrDefault(m => m.Id == messageId);
+                if (msg != null)
+                {
+                    msg.Reactions.Add(new MessageReactionDto { Emoji = emoji, UserId = userId, UserName = userName });
+                    StateHasChanged();
+                    break;
+                }
+            }
+        });
+    }
+
+    private void HandleReactionRemoved(int messageId, string userId, string emoji)
+    {
+        InvokeAsync(() =>
+        {
+            foreach (var conv in Conversations)
+            {
+                var msg = conv.Messages.FirstOrDefault(m => m.Id == messageId);
+                if (msg != null)
+                {
+                    var existing = msg.Reactions.FirstOrDefault(r => r.UserId == userId && r.Emoji == emoji);
+                    if (existing != null)
+                    {
+                        msg.Reactions.Remove(existing);
+                        StateHasChanged();
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
     private async Task LoadData()
     {
         if (currentUserId == null) return;
@@ -320,6 +363,26 @@
 
         // Fetch history using the new Service method
         var history = await ChatMessageService.GetMessageHistoryAsync(currentUserId);
+
+        // Fetch missing usernames for senders/reactors not in current user's visible list (like historical users/groups)
+        var missingUserIds = history.Select(h => h.SenderId)
+        .Concat(history.SelectMany(h => h.Reactions).Select(r => r.UserId))
+        .Where(id => id != null && id != currentUserId && !AllUsers.ContainsKey(id))
+        .Distinct()
+        .ToList();
+
+        var extraUsersNames = new Dictionary<string, string>();
+        if (currentUserId != null && currentUserName != null)
+        {
+            extraUsersNames[currentUserId] = currentUserName;
+        }
+
+        foreach (var uid in missingUserIds)
+        {
+            if (uid == null) continue;
+            var user = await UserManager.FindByIdAsync(uid);
+            extraUsersNames[uid] = user?.UserName ?? "Unknown User";
+        }
 
         Conversations.Clear();
 
@@ -354,13 +417,31 @@
             conversation.Messages.Add(new ChatMessage
                 {
                     Id = h.Id,
-                    User = AllUsers.TryGetValue(h.SenderId, out var u) ? u.UserName : (h.SenderId == currentUserId ? currentUserName :
-                "Unknown User"), // Fallback if user not visible
+                    User = AllUsers.TryGetValue(h.SenderId, out var u) ? u.UserName : (extraUsersNames.TryGetValue(h.SenderId, out var
+                euName) ? euName : "Unknown User"),
                     Message = h.Message,
                     Timestamp = h.Timestamp,
                     AttachmentUrl = h.AttachmentUrl,
                     IsMine = h.SenderId == currentUserId,
-                    SenderId = h.SenderId
+                    SenderId = h.SenderId,
+                    Reactions = h.Reactions.Select(r =>
+                    {
+                        string reactionUserName = "User";
+                        if (AllUsers.TryGetValue(r.UserId, out var ru))
+                        {
+                            reactionUserName = ru.UserName;
+                        }
+                        else if (extraUsersNames.TryGetValue(r.UserId, out var euReacName))
+                        {
+                            reactionUserName = euReacName;
+                        }
+                        return new MessageReactionDto
+                        {
+                            Emoji = r.Emoji,
+                            UserId = r.UserId,
+                            UserName = reactionUserName
+                        };
+                    }).ToList()
                 });
         }
 
@@ -450,7 +531,8 @@
                 Timestamp = timestamp,
                 AttachmentUrl = attachmentUrl,
                 IsMine = senderId == currentUserId,
-                SenderId = senderId
+                SenderId = senderId,
+                Reactions = new List<MessageReactionDto>()
             };
 
         conversation.Messages.Add(msg);
@@ -663,6 +745,51 @@
             }
 
             if (IsNewChatMode) IsNewChatMode = false;
+        }
+    }
+
+    // Reaction Actions
+    private async Task HandleToggleReaction((ChatMessage msg, string emoji) args)
+    {
+        if (args.msg.Reactions == null)
+        {
+            args.msg.Reactions = new List<MessageReactionDto>();
+        }
+
+        var existing = args.msg.Reactions.FirstOrDefault(r => r.Emoji == args.emoji && r.UserId == currentUserId);
+        if (existing != null)
+        {
+            await HandleRemoveReaction(args.msg, args.emoji);
+        }
+        else
+        {
+            await HandleAddReaction(args.msg, args.emoji);
+        }
+    }
+
+    private async Task HandleAddReaction(ChatMessage msg, string emoji)
+    {
+        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            await _hubConnection.SendAsync("AddReaction", msg.Id, emoji);
+        }
+    }
+
+    private async Task HandleRemoveReaction(ChatMessage msg, string emoji)
+    {
+        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            await _hubConnection.SendAsync("RemoveReaction", msg.Id, emoji);
+        }
+    }
+
+    private ActiveChatView? activeChatView;
+
+    private async Task HandleReply(ChatMessage msg)
+    {
+        if (activeChatView != null)
+        {
+            await activeChatView.SetReplyMessageAsync(msg);
         }
     }
 

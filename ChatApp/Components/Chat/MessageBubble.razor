@@ -1,4 +1,5 @@
 @using ChatApp.Models
+@inject ChatApp.Services.IEmojiService EmojiService
 
 <div class="message-bubble @(Message.IsMine ? "mine" : "theirs")">
 
@@ -15,14 +16,91 @@
     else
     {
         <div class="message-content-wrapper">
-            @if (Message.IsMine)
-            {
-                <div class="message-actions">
-                    <button class="btn-icon" @onclick="() => OnStartEdit.InvokeAsync(Message)" title="Edit"><i class="bi bi-pencil-fill"></i></button>
-                    <button class="btn-icon text-danger" @onclick="() => OnDelete.InvokeAsync(Message)"
-                        title="Delete"><i class="bi bi-trash-fill"></i></button>
+            <div class="message-actions align-items-center">
+                <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":+1:"))'
+                    title="Thumbs Up" type="button">
+                    <FluentEmoji
+                        Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.PeopleBody.Color.Default.ThumbsUp())"
+                        Width="20px" />
+                </button>
+                <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":heart:"))'
+                    title="Heart" type="button">
+                    <FluentEmoji
+                        Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RedHeart())"
+                        Width="20px" />
+                </button>
+                <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":joy:"))'
+                    title="Laugh" type="button">
+                    <FluentEmoji
+                        Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithTearsOfJoy())"
+                        Width="20px" />
+                </button>
+                <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":o:"))'
+                    title="Surprised" type="button">
+                    <FluentEmoji
+                        Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithOpenMouth())"
+                        Width="20px" />
+                </button>
+
+                <!-- Full Emoji Picker Toggle -->
+                <div class="position-relative d-inline-block">
+                    <button class="btn-icon btn-reaction" @onclick="ToggleEmojiPicker" title="More Reactions" type="button">
+                        <div class="position-relative d-inline-flex"
+                            style="width: 20px; height: 20px; align-items: center; justify-content: center;">
+                            <i class="bi bi-emoji-smile" style="font-size: 19px; line-height: 1;"></i>
+                            <i class="bi bi-plus-circle-fill text-muted"
+                                style="position: absolute; bottom: -4px; right: -6px; font-size: 13px; background-color: var(--card-bg, #2b2b2b); border-radius: 50%; line-height: 1; border: 1px solid var(--card-bg, #2b2b2b);"></i>
+                        </div>
+                    </button>
+                    @if (ShowEmojiPicker)
+                    {
+                        <div class="emoji-picker-backdrop" @onclick="() => ShowEmojiPicker = false"
+                            style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; background: transparent;">
+                        </div>
+                        <div class="emoji-picker popup shadow rounded p-2" id="message-emoji-picker"
+                            style="position: absolute; right: 0; bottom: 120%; z-index: 1001; background: var(--card-bg, #2b2b2b); border: 1px solid var(--card-border, #333); width: 280px;">
+                            <div class="mb-2">
+                                <input type="text" class="form-control form-control-sm text-white"
+                                    style="background-color: var(--mica-alt-bg);" placeholder="Search emojis..."
+                                @bind="emojiSearchTerm" @bind:event="oninput" />
+                            </div>
+                            <div class="emoji-list-viewport" style="height: 200px; overflow-y: auto;">
+                                <Virtualize Items="GetEmojiChunks()" Context="row" ItemSize="34">
+                                    <div class="emoji-row d-flex flex-wrap">
+                                        @foreach (var emoji in row)
+                                        {
+                                            string sc = EmojiService.GetShortcode(emoji);
+                                            <button class="btn btn-light btn-sm emoji-btn m-0"
+                                                style="width: 32px; height: 32px; padding: 4px;" @onclick="() => InsertEmoji(sc)"
+                                                title="@emoji.Name" type="button">
+                                                <FluentEmoji Value="@emoji" Width="24px" />
+                                            </button>
+                                        }
+                                    </div>
+                                </Virtualize>
+                            </div>
+                        </div>
+                    }
                 </div>
-            }
+
+                <div class="action-divider mx-1"></div>
+                <button class="btn-icon text-light" @onclick="() => OnReply.InvokeAsync(Message)" title="Reply with Quotes"
+                    type="button">
+                    <i class="bi bi-reply-fill"></i>
+                </button>
+
+                @if (Message.IsMine)
+                {
+                    <button class="btn-icon text-light" @onclick="() => OnStartEdit.InvokeAsync(Message)" title="Edit"
+                        type="button">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn-icon text-danger" @onclick="() => OnDelete.InvokeAsync(Message)" title="Delete"
+                        type="button">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                }
+            </div>
 
             @if (!string.IsNullOrEmpty(Message.AttachmentUrl))
             {
@@ -32,7 +110,69 @@
                     </a>
                 </div>
             }
-            <div class="message-text">@Message.Message</div>
+            <div class="message-text">
+                @foreach (var block in ParseMessageToBlocks(Message.Message))
+                {
+                    if (block.IsQuote)
+                    {
+                        <div class="message-quote">
+                            @foreach (var line in block.Lines)
+                            {
+                                <div class="message-line">
+                                    @if (line.Count == 0 || (line.Count == 1 && string.IsNullOrEmpty(line[0].Text)))
+                                    {
+                                        <br />
+                                    }
+                                    else
+                                    {
+                                        @foreach (var segment in line)
+                                        {
+                                            if (segment.IsEmoji && segment.Emoji != null)
+                                            {
+                                                <span class="emoji-wrapper" title="@segment.Text">
+                                                    <FluentEmoji Value="@segment.Emoji" Width="24px" />
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                @segment.Text
+                                            }
+                                        }
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var line in block.Lines)
+                        {
+                            <div class="message-line">
+                                @if (line.Count == 0 || (line.Count == 1 && string.IsNullOrEmpty(line[0].Text)))
+                                {
+                                    <br />
+                                }
+                                else
+                                {
+                                    @foreach (var segment in line)
+                                    {
+                                        if (segment.IsEmoji && segment.Emoji != null)
+                                        {
+                                            <span class="emoji-wrapper" title="@segment.Text">
+                                                <FluentEmoji Value="@segment.Emoji" Width="24px" />
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            @segment.Text
+                                        }
+                                    }
+                                }
+                            </div>
+                        }
+                    }
+                }
+            </div>
         </div>
     }
 
@@ -43,6 +183,25 @@
         }
         @Message.Timestamp.ToShortTimeString()
     </div>
+
+    @if (Message.Reactions != null && Message.Reactions.Any())
+    {
+        <div class="message-reactions mt-1 d-flex flex-wrap gap-1">
+            @foreach (var group in Message.Reactions.GroupBy(r => r.Emoji))
+            {
+                var reactionObj = EmojiMap.TryGetValue(group.Key, out var emj) ? emj : EmojiService.GetEmoji(group.Key);
+                if (reactionObj != null)
+                {
+                    <button class="reaction-badge" title="@string.Join(", ", group.Select(r => r.UserName))"
+                    @onclick="() => OnToggleReaction.InvokeAsync((Message, group.Key))">
+                        @{ Console.WriteLine($"Rendering Reaction group {group.Key}, count {group.Count()}. UserNames: {string.Join(", ", group.Select(r=>r.UserName))} | MessageSender: {Message.User} - ID: {Message.SenderId}"); }
+                        <FluentEmoji Value="@reactionObj" Width="18px" />
+                        <span class="reaction-count ms-1">@group.Count()</span>
+                    </button>
+                }
+            }
+        </div>
+    }
 </div>
 
 @code {
@@ -52,6 +211,8 @@
     [Parameter] public EventCallback<ChatMessage> OnDelete { get; set; }
     [Parameter] public EventCallback<ChatMessage> OnSaveEdit { get; set; }
     [Parameter] public EventCallback<ChatMessage> OnCancelEdit { get; set; }
+    [Parameter] public EventCallback<(ChatMessage, string)> OnToggleReaction { get; set; }
+    [Parameter] public EventCallback<ChatMessage> OnReply { get; set; }
 
     private async Task Save()
     {
@@ -62,17 +223,235 @@
     {
         await OnCancelEdit.InvokeAsync(Message);
     }
+
+    // --- Emoji Picker Logic ---
+    private bool ShowEmojiPicker { get; set; } = false;
+    private string emojiSearchTerm { get; set; } = "";
+
+    private void ToggleEmojiPicker()
+    {
+        ShowEmojiPicker = !ShowEmojiPicker;
+    }
+
+    private List<List<Microsoft.FluentUI.AspNetCore.Components.Emoji>> GetEmojiChunks()
+    {
+        int chunkSize = 7;
+        var emojis = EmojiService.AllEmojis.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(emojiSearchTerm))
+        {
+            emojis = emojis.Where(e => e.Name.Contains(emojiSearchTerm, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return emojis
+        .Select((x, i) => new { Index = i, Value = x })
+        .GroupBy(x => x.Index / chunkSize)
+        .Select(x => x.Select(v => v.Value).ToList())
+        .ToList();
+    }
+
+    private async Task InsertEmoji(string shortcode)
+    {
+        ShowEmojiPicker = false;
+        emojiSearchTerm = "";
+        await OnToggleReaction.InvokeAsync((Message, shortcode));
+    }
+
+    // --- Emoji Parsing Logic ---
+    public class MessageSegment
+    {
+        public string Text { get; set; } = "";
+        public bool IsEmoji { get; set; }
+        public Microsoft.FluentUI.AspNetCore.Components.Emoji? Emoji { get; set; }
+    }
+
+    public class MessageBlock
+    {
+        public bool IsQuote { get; set; }
+        public List<List<MessageSegment>> Lines { get; set; } = new();
+    }
+
+    private static readonly Dictionary<string, Microsoft.FluentUI.AspNetCore.Components.Emoji> EmojiMap =
+    new(StringComparer.OrdinalIgnoreCase)
+        {
+{ ":grinning:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.GrinningFace() },
+{ ":)", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.GrinningFace() },
+{ ":smile:", new
+Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.SmilingFaceWithSmilingEyes() },
+{ ":+1:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.PeopleBody.Color.Default.ThumbsUp() },
+{ ":thumbsup:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.PeopleBody.Color.Default.ThumbsUp() },
+{ "<3", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RedHeart() },
+{ ":heart:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RedHeart() },
+{ ":joy:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithTearsOfJoy() },
+{ ":rofl:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RollingOnTheFloorLaughing()
+},
+{ ":sad:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FrowningFace() },
+{ ":(", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FrowningFace() },
+{ ":cry:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.CryingFace() },
+{ ":sob:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.LoudlyCryingFace() },
+{ ":angry:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.AngryFace() },
+{ ">(", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.AngryFace() },
+{ ":wink:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.WinkingFace() },
+{ ";)", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.WinkingFace() },
+{ ":sunglasses:", new
+Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.SmilingFaceWithSunglasses() },
+{ ":fire:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.TravelPlaces.Color.Default.Fire() },
+{ ":star:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.TravelPlaces.Color.Default.Star() },
+{ ":rocket:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.TravelPlaces.Color.Default.Rocket() },
+{ ":check:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.Symbols.Color.Default.CheckMarkButton() },
+{ ":x:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.Symbols.Color.Default.CrossMark() },
+{ ":o:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithOpenMouth() }
+        };
+
+    private List<MessageBlock> ParseMessageToBlocks(string? text)
+    {
+        var blocks = new List<MessageBlock>();
+        if (string.IsNullOrEmpty(text)) return blocks;
+
+        var strLines = text.Split('\n');
+        MessageBlock? currentBlock = null;
+
+        foreach (var rawLine in strLines)
+        {
+            string lineText = rawLine.TrimEnd('\r');
+            bool isQuote = lineText.StartsWith("> ");
+
+            if (isQuote)
+            {
+                lineText = lineText.Substring(2);
+            }
+            else if (lineText.StartsWith(">"))
+            {
+                lineText = lineText.Substring(1);
+                isQuote = true;
+            }
+
+            if (currentBlock == null || currentBlock.IsQuote != isQuote)
+            {
+                currentBlock = new MessageBlock { IsQuote = isQuote };
+                blocks.Add(currentBlock);
+            }
+
+            currentBlock.Lines.Add(ParseMessageSegments(lineText));
+        }
+        return blocks;
+    }
+
+    private List<MessageSegment> ParseMessageSegments(string text)
+    {
+        var segments = new List<MessageSegment>();
+        if (string.IsNullOrEmpty(text)) return segments;
+
+        // Split text by spaces only, newlines are handled by blocks
+        var parts = text.Split(' ');
+        var currentText = new System.Text.StringBuilder();
+
+        for (int i = 0; i < parts.Length; i++)
+        {
+            var p = parts[i];
+
+            // Check if this part matches an emoji mapping
+            if (EmojiMap.TryGetValue(p, out var emoji))
+            {
+                // Push accumulated text first
+                if (currentText.Length > 0)
+                {
+                    segments.Add(new MessageSegment { Text = currentText.ToString() });
+                    currentText.Clear();
+                }
+
+                segments.Add(new MessageSegment { Text = p, IsEmoji = true, Emoji = emoji });
+
+                // Add a trailing space if it wasn't the last word
+                if (i < parts.Length - 1)
+                {
+                    currentText.Append(" ");
+                }
+            }
+            else if (p.StartsWith(":") && p.EndsWith(":") && p.Length > 2)
+            {
+                // Try searching the dynamically loaded generic emojis
+                var dynamicEmoji = EmojiService.GetEmoji(p);
+                if (dynamicEmoji != null)
+                {
+                    // Push accumulated text first
+                    if (currentText.Length > 0)
+                    {
+                        segments.Add(new MessageSegment { Text = currentText.ToString() });
+                        currentText.Clear();
+                    }
+
+                    segments.Add(new MessageSegment { Text = p, IsEmoji = true, Emoji = dynamicEmoji });
+
+                    if (i < parts.Length - 1)
+                    {
+                        currentText.Append(" ");
+                    }
+                }
+                else
+                {
+                    currentText.Append(p);
+                    if (i < parts.Length - 1)
+                    {
+                        currentText.Append(" ");
+                    }
+                }
+            }
+            else
+            {
+                currentText.Append(p);
+                if (i < parts.Length - 1)
+                {
+                    currentText.Append(" ");
+                }
+            }
+        }
+
+        if (currentText.Length > 0)
+        {
+            segments.Add(new MessageSegment { Text = currentText.ToString() });
+        }
+
+        return segments;
+    }
 }
 
 <style>
     /* Message Bubble Styles */
     .message-bubble {
         max-width: 70%;
-        padding: 10px 15px;
+        padding: 5px 10px;
         border-radius: 10px;
         position: relative;
         animation: fadeIn 0.3s ease;
         margin-bottom: 5px;
+    }
+
+    .message-text {
+        padding: 5px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .message-line {
+        min-height: 1.2em;
+        /* Ensure empty lines take up space */
+    }
+
+    .message-quote {
+        background-color: var(--hover-bg, rgba(255, 255, 255, 0.05));
+        border-left: 3px solid var(--accent-light, #0078d4);
+        padding: 5px 8px;
+        margin: 4px 0;
+        border-radius: 0 4px 4px 0;
+        opacity: 0.85;
+        font-size: 0.85em;
+        font-style: italic;
+    }
+
+    .message-bubble.mine .message-quote {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-left-color: rgba(255, 255, 255, 0.8);
     }
 
     .message-bubble.mine {
@@ -90,6 +469,13 @@
         border-bottom-left-radius: 2px;
     }
 
+    .emoji-wrapper {
+        display: inline-flex;
+        align-items: center;
+        vertical-align: middle;
+        margin: 0 2px;
+    }
+
     .message-bubble:hover .message-actions {
         opacity: 1;
         visibility: visible;
@@ -98,7 +484,6 @@
     .message-actions {
         position: absolute;
         top: -25px;
-        right: 0;
         background: var(--card-bg, #2b2b2b);
         border: 1px solid var(--card-border, #333);
         border-radius: 4px;
@@ -112,22 +497,66 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
+    .message-bubble.mine .message-actions {
+        right: 0;
+    }
+
+    .message-bubble.theirs .message-actions {
+        left: 0;
+    }
+
     .btn-icon {
         background: none;
         border: none;
         cursor: pointer;
-        font-size: 0.8rem;
-        padding: 2px;
+        font-size: 1rem;
+        padding: 4px;
         color: var(--text-primary, #ddd);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: background-color 0.2s, transform 0.2s;
     }
 
     .btn-icon:hover {
-        transform: scale(1.2);
+        background-color: var(--hover-bg, rgba(255, 255, 255, 0.1));
+        transform: scale(1.1);
+    }
+
+    .btn-reaction {
+        padding: 4px 6px;
+    }
+
+    .action-divider {
+        width: 1px;
+        height: 20px;
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .reaction-badge {
+        display: inline-flex;
+        align-items: center;
+        background-color: var(--card-bg, #2b2b2b);
+        border: 1px solid var(--card-border, #444);
+        border-radius: 14px;
+        padding: 3px 8px;
+        font-size: 0.9rem;
+        color: var(--text-primary, #fff);
+        transition: background-color 0.2s;
+    }
+
+    .reaction-badge:hover {
+        background-color: var(--hover-bg, rgba(255, 255, 255, 0.1));
+    }
+
+    .reaction-count {
+        margin-left: 3px;
     }
 
 
     .message-time {
-        font-size: 0.65rem;
+        font-size: 0.8rem;
         margin-top: 5px;
         opacity: 0.7;
     }

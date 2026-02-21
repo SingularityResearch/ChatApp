@@ -1,0 +1,1810 @@
+diff --git a/ChatApp/ChatApp.csproj b/ChatApp/ChatApp.csproj
+index 41c25f2..ca13392 100644
+--- a/ChatApp/ChatApp.csproj
++++ b/ChatApp/ChatApp.csproj
+@@ -18,6 +18,8 @@
+     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.2" />
+     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.2" />
+     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.2" />
++    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.14.0" />
++    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Emoji" Version="4.14.0" />
+   </ItemGroup>
+ 
+ </Project>
+diff --git a/ChatApp/Components/Admin/ReportingDashboard.razor b/ChatApp/Components/Admin/ReportingDashboard.razor
+index 8d6f6b3..43ab1d0 100644
+--- a/ChatApp/Components/Admin/ReportingDashboard.razor
++++ b/ChatApp/Components/Admin/ReportingDashboard.razor
+@@ -9,61 +9,64 @@
+ 
+ <PageTitle>User Activity Report</PageTitle>
+ 
+-<div class="container mt-4">
+-    <div class="d-flex justify-content-between align-items-center mb-4">
+-        <div>
+-            <h1>User Activity Report</h1>
+-            <p class="lead">View total message counts and last active user timestamps.</p>
++<div class="h-100 w-100 overflow-auto">
++    <div class="container mt-4 pb-5">
++        <div class="d-flex justify-content-between align-items-center mb-4">
++            <div>
++                <h1>User Activity Report</h1>
++                <p class="lead">View total message counts and last active user timestamps.</p>
++            </div>
++            <a href="admin" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to Admin</a>
+         </div>
+-        <a href="admin" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to Admin</a>
+-    </div>
+ 
+-    <div class="row">
+-        <div class="col-12">
+-            <div class="card bg-dark text-white border-secondary">
+-                <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+-                    <h5 class="mb-0"><i class="bi bi-graph-up pe-2"></i>User Chat Activity</h5>
+-                    <button class="btn btn-sm btn-outline-light" @onclick="LoadReport"><i
+-                            class="bi bi-arrow-clockwise pe-1"></i>Refresh</button>
+-                </div>
+-                <div class="card-body p-0">
+-                    <table class="table table-dark table-striped table-hover mb-0">
+-                        <thead>
+-                            <tr>
+-                                <th>User Name</th>
+-                                <th>Total Messages Sent</th>
+-                                <th>Last Active (Local Time)</th>
+-                            </tr>
+-                        </thead>
+-                        <tbody>
+-                            @if (_activities == null)
+-                            {
+-                                <tr>
+-                                    <td colspan="3" class="text-center text-muted py-3">Loading report...</td>
+-                                </tr>
+-                            }
+-                            else if (!_activities.Any())
+-                            {
++        <div class="row">
++            <div class="col-12">
++                <div class="card bg-dark text-white border-secondary">
++                    <div class="card-header border-secondary d-flex justify-content-between align-items-center">
++                        <h5 class="mb-0"><i class="bi bi-graph-up pe-2"></i>User Chat Activity</h5>
++                        <button class="btn btn-sm btn-outline-light" @onclick="LoadReport"><i
++                                class="bi bi-arrow-clockwise pe-1"></i>Refresh</button>
++                    </div>
++                    <div class="card-body p-0">
++                        <table class="table table-dark table-striped table-hover mb-0">
++                            <thead>
+                                 <tr>
+-                                    <td colspan="3" class="text-center text-muted py-3">No user activity found.</td>
++                                    <th>User Name</th>
++                                    <th>Total Messages Sent</th>
++                                    <th>Last Active (Local Time)</th>
+                                 </tr>
+-                            }
+-                            else
+-                            {
+-                                @foreach (var activity in _activities)
++                            </thead>
++                            <tbody>
++                                @if (_activities == null)
+                                 {
+-                                    <tr style="cursor: pointer;" class="table-active-hover"
+-                                    @onclick="() => NavigateToDetails(activity.UserId)">
+-                                        <td><strong>@activity.UserName</strong></td>
+-                                        <td>@activity.MessageCount</td>
+-                                        <td>@(activity.LastActive.HasValue ? activity.LastActive.Value.ToString("g") : "Never")
+-                                        </td>
+-                                        <td class="text-end"><i class="bi bi-chevron-right text-muted"></i></td>
++                                    <tr>
++                                        <td colspan="3" class="text-center text-muted py-3">Loading report...</td>
+                                     </tr>
+                                 }
+-                            }
+-                        </tbody>
+-                    </table>
++                                else if (!_activities.Any())
++                                {
++                                    <tr>
++                                        <td colspan="3" class="text-center text-muted py-3">No user activity found.</td>
++                                    </tr>
++                                }
++                                else
++                                {
++                                    @foreach (var activity in _activities)
++                                    {
++                                        <tr style="cursor: pointer;" class="table-active-hover"
++                                        @onclick="() => NavigateToDetails(activity.UserId)">
++                                            <td><strong>@activity.UserName</strong></td>
++                                            <td>@activity.MessageCount</td>
++                                            <td>@(activity.LastActive.HasValue ? activity.LastActive.Value.ToString("g") :
++                                                    "Never")
++                                            </td>
++                                            <td class="text-end"><i class="bi bi-chevron-right text-muted"></i></td>
++                                        </tr>
++                                    }
++                                }
++                            </tbody>
++                        </table>
++                    </div>
+                 </div>
+             </div>
+         </div>
+diff --git a/ChatApp/Components/Admin/UserDetailReport.razor b/ChatApp/Components/Admin/UserDetailReport.razor
+index 8799879..2e5b27e 100644
+--- a/ChatApp/Components/Admin/UserDetailReport.razor
++++ b/ChatApp/Components/Admin/UserDetailReport.razor
+@@ -11,70 +11,74 @@
+ 
+ <PageTitle>Detailed User Activity</PageTitle>
+ 
+-<div class="container mt-4">
+-    <div class="d-flex justify-content-between align-items-center mb-4">
+-        <div>
+-            <h1>Detailed Activity</h1>
+-            <p class="lead">Message history for <strong>@(_userName ?? "Loading...")</strong></p>
++<div class="h-100 w-100 overflow-auto">
++    <div class="container mt-4 pb-5">
++        <div class="d-flex justify-content-between align-items-center mb-4">
++            <div>
++                <h1>Detailed Activity</h1>
++                <p class="lead">Message history for <strong>@(_userName ?? "Loading...")</strong></p>
++            </div>
++            <a href="admin/reporting" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to
++                Report</a>
+         </div>
+-        <a href="admin/reporting" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to Report</a>
+-    </div>
+ 
+-    <div class="row">
+-        <div class="col-12">
+-            <div class="card bg-dark text-white border-secondary">
+-                <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+-                    <h5 class="mb-0"><i class="bi bi-list-ul pe-2"></i>Itemized Message Log</h5>
+-                    <button class="btn btn-sm btn-outline-light" @onclick="LoadDetails"><i
+-                            class="bi bi-arrow-clockwise pe-1"></i>Refresh</button>
+-                </div>
+-                <div class="card-body p-0">
+-                    <table class="table table-dark table-striped table-hover mb-0">
+-                        <thead>
+-                            <tr>
+-                                <th>Direction</th>
+-                                <th>Participants</th>
+-                                <th>Date/Time</th>
+-                            </tr>
+-                        </thead>
+-                        <tbody>
+-                            @if (_details == null)
+-                            {
++        <div class="row">
++            <div class="col-12">
++                <div class="card bg-dark text-white border-secondary">
++                    <div class="card-header border-secondary d-flex justify-content-between align-items-center">
++                        <h5 class="mb-0"><i class="bi bi-list-ul pe-2"></i>Itemized Message Log</h5>
++                        <button class="btn btn-sm btn-outline-light" @onclick="LoadDetails"><i
++                                class="bi bi-arrow-clockwise pe-1"></i>Refresh</button>
++                    </div>
++                    <div class="card-body p-0">
++                        <table class="table table-dark table-striped table-hover mb-0">
++                            <thead>
+                                 <tr>
+-                                    <td colspan="3" class="text-center text-muted py-3">Loading details...</td>
++                                    <th>Direction</th>
++                                    <th>Participants</th>
++                                    <th>Date/Time</th>
+                                 </tr>
+-                            }
+-                            else if (!_details.Any())
+-                            {
+-                                <tr>
+-                                    <td colspan="3" class="text-center text-muted py-3">No message history found for this
+-                                        user.</td>
+-                                </tr>
+-                            }
+-                            else
+-                            {
+-                                @foreach (var detail in _details)
++                            </thead>
++                            <tbody>
++                                @if (_details == null)
+                                 {
+                                     <tr>
+-                                        <td>
+-                                            @if (detail.Direction == "Sent")
+-                                            {
+-                                                <span class="badge bg-primary text-white"><i
+-                                                        class="bi bi-arrow-up-right me-1"></i>Sent</span>
+-                                            }
+-                                            else
+-                                            {
+-                                                <span class="badge bg-dark border border-secondary text-light"><i
+-                                                        class="bi bi-arrow-down-left me-1"></i>Received</span>
+-                                            }
+-                                        </td>
+-                                        <td>@detail.OtherParties</td>
+-                                        <td>@detail.Timestamp.ToString("g")</td>
++                                        <td colspan="3" class="text-center text-muted py-3">Loading details...</td>
+                                     </tr>
+                                 }
+-                            }
+-                        </tbody>
+-                    </table>
++                                else if (!_details.Any())
++                                {
++                                    <tr>
++                                        <td colspan="3" class="text-center text-muted py-3">No message history found for
++                                            this
++                                            user.</td>
++                                    </tr>
++                                }
++                                else
++                                {
++                                    @foreach (var detail in _details)
++                                    {
++                                        <tr>
++                                            <td>
++                                                @if (detail.Direction == "Sent")
++                                                {
++                                                    <span class="badge bg-primary text-white"><i
++                                                            class="bi bi-arrow-up-right me-1"></i>Sent</span>
++                                                }
++                                                else
++                                                {
++                                                    <span class="badge bg-dark border border-secondary text-light"><i
++                                                            class="bi bi-arrow-down-left me-1"></i>Received</span>
++                                                }
++                                            </td>
++                                            <td>@detail.OtherParties</td>
++                                            <td>@detail.Timestamp.ToString("g")</td>
++                                        </tr>
++                                    }
++                                }
++                            </tbody>
++                        </table>
++                    </div>
+                 </div>
+             </div>
+         </div>
+diff --git a/ChatApp/Components/Chat/ActiveChatView.razor b/ChatApp/Components/Chat/ActiveChatView.razor
+index 0a2da32..0503836 100644
+--- a/ChatApp/Components/Chat/ActiveChatView.razor
++++ b/ChatApp/Components/Chat/ActiveChatView.razor
+@@ -15,11 +15,11 @@
+     @foreach (var msg in Conversation.Messages)
+     {
+         <MessageBubble Message="msg" IsGroup="@Conversation.IsGroup" OnStartEdit="OnStartEdit" OnDelete="OnDelete"
+-            OnSaveEdit="OnSaveEdit" OnCancelEdit="OnCancelEdit" />
++            OnSaveEdit="OnSaveEdit" OnCancelEdit="OnCancelEdit" OnReply="OnReply" OnToggleReaction="OnToggleReaction" />
+     }
+ </div>
+ 
+-<ChatInput IsConnected="@IsConnected" OnSend="OnSend" OnFileChange="OnFileUpload" />
++<ChatInput @ref="chatInput" IsConnected="@IsConnected" OnSend="OnSend" OnFileChange="OnFileUpload" />
+ 
+ @code {
+     [Parameter] public ConversationViewModel Conversation { get; set; } = new();
+@@ -33,6 +33,26 @@
+     [Parameter] public EventCallback<ChatMessage> OnDelete { get; set; }
+     [Parameter] public EventCallback<ChatMessage> OnSaveEdit { get; set; }
+     [Parameter] public EventCallback<ChatMessage> OnCancelEdit { get; set; }
++    [Parameter] public EventCallback<ChatMessage> OnReply { get; set; }
++    [Parameter] public EventCallback<(ChatMessage, string)> OnToggleReaction { get; set; }
++
++    private ChatInput? chatInput;
++
++    public async Task SetInputAsync(string text)
++    {
++        if (chatInput != null)
++        {
++            await chatInput.SetInputAsync(text);
++        }
++    }
++
++    public async Task SetReplyMessageAsync(ChatMessage msg)
++    {
++        if (chatInput != null)
++        {
++            await chatInput.SetReplyMessageAsync(msg);
++        }
++    }
+ }
+ 
+ <style>
+diff --git a/ChatApp/Components/Chat/ChatInput.razor b/ChatApp/Components/Chat/ChatInput.razor
+index 41b59ef..791aa4f 100644
+--- a/ChatApp/Components/Chat/ChatInput.razor
++++ b/ChatApp/Components/Chat/ChatInput.razor
+@@ -1,9 +1,118 @@
++@using ChatApp.Models
++@using Microsoft.FluentUI.AspNetCore.Components
++@inject ChatApp.Services.IEmojiService EmojiService
++@inject IJSRuntime JSRuntime
++
+ <div class="chat-input-area @Class">
+-    <div class="input-group">
+-        <InputFile OnChange="OnFileChange" class="form-control" style="max-width: 200px" />
+-        <input type="text" class="form-control" placeholder="@Placeholder" @bind="MessageInput" @bind:event="oninput"
+-        @onkeyup="HandleKeyUp" />
+-        <button class="btn btn-primary" @onclick="Send" disabled="@(!IsConnected)">@ButtonText</button>
++    @if (_replyingToMessage != null)
++    {
++        <div class="reply-preview-box d-flex justify-content-between align-items-stretch mb-2 rounded"
++            style="background-color: var(--hover-bg, rgba(255, 255, 255, 0.05)); border-left: 3px solid var(--accent-light, #0078d4);">
++            <div class="reply-preview-content p-2" style="flex: 1; overflow: hidden;">
++                <small class="d-block text-muted mb-1 fw-bold">Replying to @_replyingToMessage.User at
++                    @_replyingToMessage.Timestamp.ToShortTimeString()</small>
++                <div class="text-truncate" style="font-size: 0.9em; opacity: 0.9; max-height: 40px; overflow: hidden;">
++                    @{
++                        var parts = ParseMessageInline(_replyingToMessage.Message);
++                        foreach (var part in parts)
++                        {
++                            if (part.IsEmoji && part.Emoji != null)
++                            {
++                                <span class="d-inline-flex align-items-center" style="vertical-align: middle;">
++                                    <FluentEmoji Value="@part.Emoji" Width="16px" />
++                                </span>
++                            }
++                            else
++                            {
++                                <span>@part.Text</span>
++                            }
++                        }
++                    }
++                </div>
++            </div>
++            <button class="btn btn-icon text-muted p-2 m-0" style="border-radius: 0 4px 4px 0;"
++            @onclick="() => _replyingToMessage = null" type="button" title="Cancel Reply">
++                <i class="bi bi-x-lg fs-5"></i>
++            </button>
++        </div>
++    }
++
++    <div class="chat-input-wrapper d-flex align-items-center">
++        <div class="position-relative w-100 d-flex align-items-center">
++            <textarea @ref="inputField" class="chat-input-field flex-grow-1 py-1" placeholder="@Placeholder"
++            @bind="MessageInput" @bind:event="oninput" @onkeydown="HandleKeyDown" rows="1"
++                style="resize: none; overflow-y: auto; max-height: 150px; min-height: 36px; line-height: 1.5;"></textarea>
++
++            @if (ShowInlineSuggestions && InlineSuggestions.Any())
++            {
++                <div class="emoji-picker-backdrop" @onclick="() => ShowInlineSuggestions = false"
++                    style="background: transparent;"></div>
++                <div class="inline-emoji-suggestions popup shadow rounded p-2" id="inline-emoji-container">
++                    <div class="d-flex flex-wrap gap-1">
++                        @foreach (var emoji in InlineSuggestions)
++                        {
++                            <button class="btn btn-light btn-sm emoji-btn m-0" style="width: 32px; height: 32px; padding: 4px;"
++                            @onclick="() => InsertInlineEmoji(emoji)" title="@emoji.Name" type="button">
++                                <FluentEmoji Value="@emoji" Width="24px" />
++                            </button>
++                        }
++                    </div>
++                </div>
++            }
++        </div>
++
++        <div class="chat-input-actions d-flex align-items-center">
++            <button class="btn btn-icon btn-sm text-light" type="button" title="Rich Text Editor"
++            @onclick="OpenRichTextEditor">
++                <i class="bi bi-fonts"></i>
++            </button>
++
++            <div class="position-relative d-inline-block">
++                <button class="btn btn-icon btn-sm text-light" @onclick="ToggleEmojiPicker" type="button"
++                    title="Emojis">
++                    <i class="bi bi-emoji-smile"></i>
++                </button>
++                @if (ShowEmojiPicker)
++                {
++                    <div class="emoji-picker-backdrop" @onclick="() => ShowEmojiPicker = false"></div>
++                    <div class="emoji-picker popup shadow rounded p-2" id="emoji-picker-container"
++                        style="right: 0; left: auto; bottom: 120%;">
++                        <div class="mb-2">
++                            <input type="text" class="form-control form-control-sm text-white"
++                                style="background-color: var(--mica-alt-bg);" placeholder="Search emojis..."
++                            @bind="emojiSearchTerm" @bind:event="oninput" />
++                        </div>
++                        <div class="emoji-list-viewport" style="height: 300px; overflow-y: auto;">
++                            <Virtualize Items="GetEmojiChunks()" Context="row" ItemSize="34">
++                                <div class="emoji-row">
++                                    @foreach (var emoji in row)
++                                    {
++                                        <button class="btn btn-light btn-sm emoji-btn m-0"
++                                            style="width: 32px; height: 32px; padding: 4px;" @onclick="() => InsertEmoji(emoji)"
++                                            title="@emoji.Name" type="button">
++                                            <FluentEmoji Value="@emoji" Width="24px" />
++                                        </button>
++                                    }
++                                </div>
++                            </Virtualize>
++                        </div>
++                    </div>
++                }
++            </div>
++
++            <label for="chat-file-upload" class="btn btn-icon btn-sm text-light m-0" title="Add Attachment"
++                style="cursor: pointer;">
++                <i class="bi bi-plus-lg"></i>
++            </label>
++            <InputFile OnChange="OnFileChange" id="chat-file-upload" class="d-none" />
++
++            <div class="action-divider mx-1"></div>
++
++            <button class="btn btn-icon btn-sm text-light" type="button" title="Send" @onclick="Send"
++                disabled="@(!IsConnected || string.IsNullOrWhiteSpace(_messageInput))">
++                <i class="bi bi-send"></i>
++            </button>
++        </div>
+     </div>
+     @ChildContent
+ </div>
+@@ -17,20 +126,230 @@
+     [Parameter] public RenderFragment? ChildContent { get; set; }
+     [Parameter] public string Class { get; set; } = "";
+ 
+-    private string MessageInput { get; set; } = "";
++    private ElementReference inputField;
++    private string _messageInput = "";
++    private ChatMessage? _replyingToMessage = null;
++
++    public async Task SetInputAsync(string text)
++    {
++        _messageInput = text;
++        StateHasChanged();
++        await inputField.FocusAsync();
++    }
++
++    public async Task SetReplyMessageAsync(ChatMessage msg)
++    {
++        _replyingToMessage = msg;
++        StateHasChanged();
++        await inputField.FocusAsync();
++    }
++
++    protected override async Task OnAfterRenderAsync(bool firstRender)
++    {
++        if (firstRender)
++        {
++            await JSRuntime.InvokeVoidAsync("eval", @"
++var tx = document.querySelector('.chat-input-field');
++if (tx) {
++tx.addEventListener('input', function() {
++this.style.height = 'auto';
++this.style.height = (this.scrollHeight) + 'px';
++});
++}
++");
++        }
++    }
++
++    private string MessageInput
++    {
++        get => _messageInput;
++        set
++        {
++            if (_messageInput != value)
++            {
++                _messageInput = value;
++                CheckForInlineSuggestions();
++            }
++        }
++    }
++
++    private bool ShowEmojiPicker { get; set; } = false;
++    private string emojiSearchTerm { get; set; } = "";
++
++    // Inline Suggestion State
++    private bool ShowInlineSuggestions { get; set; } = false;
++    private List<Microsoft.FluentUI.AspNetCore.Components.Emoji> InlineSuggestions { get; set; } = new();
++    private string _currentSearchWord = "";
++
++    private List<List<Microsoft.FluentUI.AspNetCore.Components.Emoji>> GetEmojiChunks()
++    {
++        int chunkSize = 8;
++        var emojis = EmojiService.AllEmojis.AsEnumerable();
++
++        if (!string.IsNullOrWhiteSpace(emojiSearchTerm))
++        {
++            emojis = emojis.Where(e => e.Name.Contains(emojiSearchTerm, StringComparison.OrdinalIgnoreCase));
++        }
++
++        return emojis
++        .Select((x, i) => new { Index = i, Value = x })
++        .GroupBy(x => x.Index / chunkSize)
++        .Select(x => x.Select(v => v.Value).ToList())
++        .ToList();
++    }
++
++    private void ToggleEmojiPicker()
++    {
++        ShowEmojiPicker = !ShowEmojiPicker;
++    }
++
++    private void OpenRichTextEditor()
++    {
++        // Placeholder for the rich text editor overlay to be implemented later
++        // Currently mapped to the A/pencil button as requested
++    }
++
++    private void InsertEmoji(Microsoft.FluentUI.AspNetCore.Components.Emoji emoji)
++    {
++        string unicode = EmojiService.GetUnicode(emoji.Name);
++        string insertText = string.IsNullOrEmpty(unicode)
++        ? EmojiService.GetShortcode(emoji)
++        : unicode;
++
++        if (!string.IsNullOrEmpty(MessageInput) && !MessageInput.EndsWith(" "))
++        {
++            _messageInput += " "; // Bypass property setter to avoid triggering search loop
++        }
++        _messageInput += insertText + " ";
++        ShowEmojiPicker = false;
++    }
++
++    private void CheckForInlineSuggestions()
++    {
++        if (string.IsNullOrWhiteSpace(_messageInput))
++        {
++            ShowInlineSuggestions = false;
++            return;
++        }
++
++        // Get the last word being typed
++        var words = _messageInput.Split(new[] { ' ', '\n' });
++        _currentSearchWord = words.LastOrDefault() ?? "";
++
++        // Only search if the word is at least 3 letters to prevent noise
++        if (_currentSearchWord.Length >= 3)
++        {
++            InlineSuggestions = EmojiService.AllEmojis
++            .Where(e => e.Name.Contains(_currentSearchWord, StringComparison.OrdinalIgnoreCase))
++            .Take(10) // Limit to top 10 suggestions to not overwhelm UI
++            .ToList();
++
++            ShowInlineSuggestions = InlineSuggestions.Any();
++        }
++        else
++        {
++            ShowInlineSuggestions = false;
++        }
++    }
++
++    private void InsertInlineEmoji(Microsoft.FluentUI.AspNetCore.Components.Emoji emoji)
++    {
++        string unicode = EmojiService.GetUnicode(emoji.Name);
++        string insertText = string.IsNullOrEmpty(unicode)
++        ? EmojiService.GetShortcode(emoji)
++        : unicode;
++
++        // Replace the last word (_currentSearchWord) with the emoji
++        int lastIndex = _messageInput.LastIndexOf(_currentSearchWord, StringComparison.OrdinalIgnoreCase);
++        if (lastIndex >= 0)
++        {
++            // Remove the typed keyword and replace with emoji
++            _messageInput = _messageInput.Remove(lastIndex, _currentSearchWord.Length).Insert(lastIndex, insertText + " ");
++        }
++
++        ShowInlineSuggestions = false;
++    }
+ 
+     private async Task Send()
+     {
+-        if (!string.IsNullOrWhiteSpace(MessageInput))
++        if (!string.IsNullOrWhiteSpace(_messageInput))
+         {
+-            await OnSend.InvokeAsync(MessageInput);
+-            MessageInput = string.Empty;
++            string finalMessage = _messageInput;
++            if (_replyingToMessage != null)
++            {
++                var quoteLines = _replyingToMessage.Message.Split('\n').Select(l => $"> {l}");
++                string quoteHeader = $"> {_replyingToMessage.User} • {_replyingToMessage.Timestamp.ToShortTimeString()}:\n";
++                string quoteText = quoteHeader + string.Join("\n", quoteLines) + "\n\n";
++                finalMessage = quoteText + finalMessage;
++            }
++
++            await OnSend.InvokeAsync(finalMessage);
++            _messageInput = string.Empty;
++            _replyingToMessage = null;
++            ShowInlineSuggestions = false;
++            // Reset textarea height after sending
++            await JSRuntime.InvokeVoidAsync("eval", "document.querySelector('.chat-input-field').style.height = 'auto'");
+         }
+     }
+ 
+-    private async Task HandleKeyUp(KeyboardEventArgs e)
++    public class MessageSegment
+     {
+-        if (e.Key == "Enter") await Send();
++        public string Text { get; set; } = "";
++        public bool IsEmoji { get; set; }
++        public Microsoft.FluentUI.AspNetCore.Components.Emoji? Emoji { get; set; }
++    }
++
++    private List<MessageSegment> ParseMessageInline(string? text)
++    {
++        var segments = new List<MessageSegment>();
++        if (string.IsNullOrEmpty(text)) return segments;
++
++        var parts = text.Split(new[] { ' ', '\n' });
++        var currentText = new System.Text.StringBuilder();
++
++        for (int i = 0; i < parts.Length; i++)
++        {
++            var p = parts[i];
++            Microsoft.FluentUI.AspNetCore.Components.Emoji? dynamicEmoji = null;
++
++            if (p.StartsWith(":") && p.EndsWith(":") && p.Length > 2)
++            {
++                dynamicEmoji = EmojiService.GetEmoji(p);
++            }
++
++            if (dynamicEmoji != null)
++            {
++                if (currentText.Length > 0)
++                {
++                    segments.Add(new MessageSegment { Text = currentText.ToString() });
++                    currentText.Clear();
++                }
++                segments.Add(new MessageSegment { Text = p, IsEmoji = true, Emoji = dynamicEmoji });
++                if (i < parts.Length - 1) currentText.Append(" ");
++            }
++            else
++            {
++                currentText.Append(p);
++                if (i < parts.Length - 1) currentText.Append(" ");
++            }
++        }
++        if (currentText.Length > 0)
++        {
++            segments.Add(new MessageSegment { Text = currentText.ToString() });
++        }
++        return segments;
++    }
++
++    private async Task HandleKeyDown(KeyboardEventArgs e)
++    {
++        if (e.Key == "Enter" && !e.ShiftKey)
++        {
++            await Send();
++        }
++        else if (e.Key == "Escape")
++        {
++            ShowInlineSuggestions = false;
++        }
+     }
+ }
+ 
+@@ -40,5 +359,117 @@
+         background-color: var(--mica-alt-bg, #202020);
+         /* Fallback */
+         border-top: 1px solid var(--card-border, #333);
++        position: relative;
++    }
++
++    .chat-input-wrapper {
++        background-color: var(--card-bg, #2b2b2b);
++        border: 1px solid var(--card-border, #444);
++        border-radius: 6px;
++        padding: 4px 8px;
++        transition: border-color 0.2s;
++    }
++
++    .chat-input-wrapper:focus-within {
++        border-color: var(--accent-color, #0078d4);
++    }
++
++    .chat-input-field {
++        background: transparent;
++        border: none;
++        color: var(--text-primary, #ffffff);
++        padding: 8px;
++        outline: none;
++        box-shadow: none;
++        min-width: 0;
++    }
++
++    .chat-input-field:focus {
++        background: transparent;
++        color: var(--text-primary, #ffffff);
++        outline: none;
++        box-shadow: none;
++    }
++
++    .chat-input-actions {
++        gap: 8px;
++        padding-right: 4px;
++    }
++
++    .btn-icon {
++        width: 38px;
++        height: 38px;
++        font-size: 1.25rem;
++        padding: 0;
++        display: inline-flex;
++        align-items: center;
++        justify-content: center;
++        border-radius: 4px;
++        transition: background-color 0.2s;
++    }
++
++    .btn-icon:hover {
++        background-color: var(--hover-bg, rgba(255, 255, 255, 0.1));
++    }
++
++    .action-divider {
++        width: 1px;
++        height: 24px;
++        background-color: rgba(255, 255, 255, 0.5);
++    }
++
++    .emoji-picker-backdrop {
++        position: fixed;
++        top: 0;
++        left: 0;
++        width: 100vw;
++        height: 100vh;
++        z-index: 999;
++        cursor: default;
++    }
++
++    .emoji-picker {
++        position: absolute;
++        bottom: 100%;
++        left: 0;
++        margin-bottom: 10px;
++        background-color: var(--card-bg, #2b2b2b);
++        border: 1px solid var(--card-border, #444);
++        width: 300px;
++        /* Tightly wraps 8 emojis * 32px + padding */
++        z-index: 1000;
++    }
++
++    .emoji-row {
++        display: grid;
++        grid-template-columns: repeat(8, 32px);
++        gap: 2px;
++        justify-content: center;
++        margin-bottom: 2px;
++    }
++
++    .emoji-btn {
++        background: transparent;
++        border: none;
++        padding: 4px;
++        border-radius: 4px;
++        display: flex;
++        align-items: center;
++        justify-content: center;
++    }
++
++    .emoji-btn:hover {
++        background-color: var(--hover-bg, rgba(255, 255, 255, 0.1));
++    }
++
++    .inline-emoji-suggestions {
++        position: absolute;
++        bottom: 100%;
++        left: 0;
++        margin-bottom: 5px;
++        background-color: var(--card-bg, #2b2b2b);
++        border: 1px solid var(--card-border, #444);
++        max-width: 100%;
++        z-index: 1001;
+     }
+ </style>
+diff --git a/ChatApp/Components/Chat/MessageBubble.razor b/ChatApp/Components/Chat/MessageBubble.razor
+index 260102e..52e082d 100644
+--- a/ChatApp/Components/Chat/MessageBubble.razor
++++ b/ChatApp/Components/Chat/MessageBubble.razor
+@@ -1,4 +1,5 @@
+ @using ChatApp.Models
++@inject ChatApp.Services.IEmojiService EmojiService
+ 
+ <div class="message-bubble @(Message.IsMine ? "mine" : "theirs")">
+ 
+@@ -15,14 +16,91 @@
+     else
+     {
+         <div class="message-content-wrapper">
+-            @if (Message.IsMine)
+-            {
+-                <div class="message-actions">
+-                    <button class="btn-icon" @onclick="() => OnStartEdit.InvokeAsync(Message)" title="Edit"><i class="bi bi-pencil-fill"></i></button>
+-                    <button class="btn-icon text-danger" @onclick="() => OnDelete.InvokeAsync(Message)"
+-                        title="Delete"><i class="bi bi-trash-fill"></i></button>
++            <div class="message-actions align-items-center">
++                <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":+1:"))'
++                    title="Thumbs Up" type="button">
++                    <FluentEmoji
++                        Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.PeopleBody.Color.Default.ThumbsUp())"
++                        Width="20px" />
++                </button>
++                <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":heart:"))'
++                    title="Heart" type="button">
++                    <FluentEmoji
++                        Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RedHeart())"
++                        Width="20px" />
++                </button>
++                <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":joy:"))'
++                    title="Laugh" type="button">
++                    <FluentEmoji
++                        Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithTearsOfJoy())"
++                        Width="20px" />
++                </button>
++                <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":o:"))'
++                    title="Surprised" type="button">
++                    <FluentEmoji
++                        Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithOpenMouth())"
++                        Width="20px" />
++                </button>
++
++                <!-- Full Emoji Picker Toggle -->
++                <div class="position-relative d-inline-block">
++                    <button class="btn-icon btn-reaction" @onclick="ToggleEmojiPicker" title="More Reactions" type="button">
++                        <div class="position-relative d-inline-flex"
++                            style="width: 20px; height: 20px; align-items: center; justify-content: center;">
++                            <i class="bi bi-emoji-smile" style="font-size: 19px; line-height: 1;"></i>
++                            <i class="bi bi-plus-circle-fill text-muted"
++                                style="position: absolute; bottom: -4px; right: -6px; font-size: 13px; background-color: var(--card-bg, #2b2b2b); border-radius: 50%; line-height: 1; border: 1px solid var(--card-bg, #2b2b2b);"></i>
++                        </div>
++                    </button>
++                    @if (ShowEmojiPicker)
++                    {
++                        <div class="emoji-picker-backdrop" @onclick="() => ShowEmojiPicker = false"
++                            style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; background: transparent;">
++                        </div>
++                        <div class="emoji-picker popup shadow rounded p-2" id="message-emoji-picker"
++                            style="position: absolute; right: 0; bottom: 120%; z-index: 1001; background: var(--card-bg, #2b2b2b); border: 1px solid var(--card-border, #333); width: 280px;">
++                            <div class="mb-2">
++                                <input type="text" class="form-control form-control-sm text-white"
++                                    style="background-color: var(--mica-alt-bg);" placeholder="Search emojis..."
++                                @bind="emojiSearchTerm" @bind:event="oninput" />
++                            </div>
++                            <div class="emoji-list-viewport" style="height: 200px; overflow-y: auto;">
++                                <Virtualize Items="GetEmojiChunks()" Context="row" ItemSize="34">
++                                    <div class="emoji-row d-flex flex-wrap">
++                                        @foreach (var emoji in row)
++                                        {
++                                            string sc = EmojiService.GetShortcode(emoji);
++                                            <button class="btn btn-light btn-sm emoji-btn m-0"
++                                                style="width: 32px; height: 32px; padding: 4px;" @onclick="() => InsertEmoji(sc)"
++                                                title="@emoji.Name" type="button">
++                                                <FluentEmoji Value="@emoji" Width="24px" />
++                                            </button>
++                                        }
++                                    </div>
++                                </Virtualize>
++                            </div>
++                        </div>
++                    }
+                 </div>
+-            }
++
++                <div class="action-divider mx-1"></div>
++                <button class="btn-icon text-light" @onclick="() => OnReply.InvokeAsync(Message)" title="Reply with Quotes"
++                    type="button">
++                    <i class="bi bi-reply-fill"></i>
++                </button>
++
++                @if (Message.IsMine)
++                {
++                    <button class="btn-icon text-light" @onclick="() => OnStartEdit.InvokeAsync(Message)" title="Edit"
++                        type="button">
++                        <i class="bi bi-pencil"></i>
++                    </button>
++                    <button class="btn-icon text-danger" @onclick="() => OnDelete.InvokeAsync(Message)" title="Delete"
++                        type="button">
++                        <i class="bi bi-trash"></i>
++                    </button>
++                }
++            </div>
+ 
+             @if (!string.IsNullOrEmpty(Message.AttachmentUrl))
+             {
+@@ -32,7 +110,69 @@
+                     </a>
+                 </div>
+             }
+-            <div class="message-text">@Message.Message</div>
++            <div class="message-text">
++                @foreach (var block in ParseMessageToBlocks(Message.Message))
++                {
++                    if (block.IsQuote)
++                    {
++                        <div class="message-quote">
++                            @foreach (var line in block.Lines)
++                            {
++                                <div class="message-line">
++                                    @if (line.Count == 0 || (line.Count == 1 && string.IsNullOrEmpty(line[0].Text)))
++                                    {
++                                        <br />
++                                    }
++                                    else
++                                    {
++                                        @foreach (var segment in line)
++                                        {
++                                            if (segment.IsEmoji && segment.Emoji != null)
++                                            {
++                                                <span class="emoji-wrapper" title="@segment.Text">
++                                                    <FluentEmoji Value="@segment.Emoji" Width="24px" />
++                                                </span>
++                                            }
++                                            else
++                                            {
++                                                @segment.Text
++                                            }
++                                        }
++                                    }
++                                </div>
++                            }
++                        </div>
++                    }
++                    else
++                    {
++                        @foreach (var line in block.Lines)
++                        {
++                            <div class="message-line">
++                                @if (line.Count == 0 || (line.Count == 1 && string.IsNullOrEmpty(line[0].Text)))
++                                {
++                                    <br />
++                                }
++                                else
++                                {
++                                    @foreach (var segment in line)
++                                    {
++                                        if (segment.IsEmoji && segment.Emoji != null)
++                                        {
++                                            <span class="emoji-wrapper" title="@segment.Text">
++                                                <FluentEmoji Value="@segment.Emoji" Width="24px" />
++                                            </span>
++                                        }
++                                        else
++                                        {
++                                            @segment.Text
++                                        }
++                                    }
++                                }
++                            </div>
++                        }
++                    }
++                }
++            </div>
+         </div>
+     }
+ 
+@@ -43,6 +183,25 @@
+         }
+         @Message.Timestamp.ToShortTimeString()
+     </div>
++
++    @if (Message.Reactions != null && Message.Reactions.Any())
++    {
++        <div class="message-reactions mt-1 d-flex flex-wrap gap-1">
++            @foreach (var group in Message.Reactions.GroupBy(r => r.Emoji))
++            {
++                var reactionObj = EmojiMap.TryGetValue(group.Key, out var emj) ? emj : EmojiService.GetEmoji(group.Key);
++                if (reactionObj != null)
++                {
++                    <button class="reaction-badge" title="@string.Join(", ", group.Select(r => r.UserName))"
++                    @onclick="() => OnToggleReaction.InvokeAsync((Message, group.Key))">
++                        @{ Console.WriteLine($"Rendering Reaction group {group.Key}, count {group.Count()}. UserNames: {string.Join(", ", group.Select(r=>r.UserName))} | MessageSender: {Message.User} - ID: {Message.SenderId}"); }
++                        <FluentEmoji Value="@reactionObj" Width="18px" />
++                        <span class="reaction-count ms-1">@group.Count()</span>
++                    </button>
++                }
++            }
++        </div>
++    }
+ </div>
+ 
+ @code {
+@@ -52,6 +211,8 @@
+     [Parameter] public EventCallback<ChatMessage> OnDelete { get; set; }
+     [Parameter] public EventCallback<ChatMessage> OnSaveEdit { get; set; }
+     [Parameter] public EventCallback<ChatMessage> OnCancelEdit { get; set; }
++    [Parameter] public EventCallback<(ChatMessage, string)> OnToggleReaction { get; set; }
++    [Parameter] public EventCallback<ChatMessage> OnReply { get; set; }
+ 
+     private async Task Save()
+     {
+@@ -62,19 +223,237 @@
+     {
+         await OnCancelEdit.InvokeAsync(Message);
+     }
++
++    // --- Emoji Picker Logic ---
++    private bool ShowEmojiPicker { get; set; } = false;
++    private string emojiSearchTerm { get; set; } = "";
++
++    private void ToggleEmojiPicker()
++    {
++        ShowEmojiPicker = !ShowEmojiPicker;
++    }
++
++    private List<List<Microsoft.FluentUI.AspNetCore.Components.Emoji>> GetEmojiChunks()
++    {
++        int chunkSize = 7;
++        var emojis = EmojiService.AllEmojis.AsEnumerable();
++
++        if (!string.IsNullOrWhiteSpace(emojiSearchTerm))
++        {
++            emojis = emojis.Where(e => e.Name.Contains(emojiSearchTerm, StringComparison.OrdinalIgnoreCase));
++        }
++
++        return emojis
++        .Select((x, i) => new { Index = i, Value = x })
++        .GroupBy(x => x.Index / chunkSize)
++        .Select(x => x.Select(v => v.Value).ToList())
++        .ToList();
++    }
++
++    private async Task InsertEmoji(string shortcode)
++    {
++        ShowEmojiPicker = false;
++        emojiSearchTerm = "";
++        await OnToggleReaction.InvokeAsync((Message, shortcode));
++    }
++
++    // --- Emoji Parsing Logic ---
++    public class MessageSegment
++    {
++        public string Text { get; set; } = "";
++        public bool IsEmoji { get; set; }
++        public Microsoft.FluentUI.AspNetCore.Components.Emoji? Emoji { get; set; }
++    }
++
++    public class MessageBlock
++    {
++        public bool IsQuote { get; set; }
++        public List<List<MessageSegment>> Lines { get; set; } = new();
++    }
++
++    private static readonly Dictionary<string, Microsoft.FluentUI.AspNetCore.Components.Emoji> EmojiMap =
++    new(StringComparer.OrdinalIgnoreCase)
++        {
++{ ":grinning:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.GrinningFace() },
++{ ":)", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.GrinningFace() },
++{ ":smile:", new
++Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.SmilingFaceWithSmilingEyes() },
++{ ":+1:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.PeopleBody.Color.Default.ThumbsUp() },
++{ ":thumbsup:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.PeopleBody.Color.Default.ThumbsUp() },
++{ "<3", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RedHeart() },
++{ ":heart:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RedHeart() },
++{ ":joy:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithTearsOfJoy() },
++{ ":rofl:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RollingOnTheFloorLaughing()
++},
++{ ":sad:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FrowningFace() },
++{ ":(", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FrowningFace() },
++{ ":cry:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.CryingFace() },
++{ ":sob:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.LoudlyCryingFace() },
++{ ":angry:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.AngryFace() },
++{ ">(", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.AngryFace() },
++{ ":wink:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.WinkingFace() },
++{ ";)", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.WinkingFace() },
++{ ":sunglasses:", new
++Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.SmilingFaceWithSunglasses() },
++{ ":fire:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.TravelPlaces.Color.Default.Fire() },
++{ ":star:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.TravelPlaces.Color.Default.Star() },
++{ ":rocket:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.TravelPlaces.Color.Default.Rocket() },
++{ ":check:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.Symbols.Color.Default.CheckMarkButton() },
++{ ":x:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.Symbols.Color.Default.CrossMark() },
++{ ":o:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithOpenMouth() }
++        };
++
++    private List<MessageBlock> ParseMessageToBlocks(string? text)
++    {
++        var blocks = new List<MessageBlock>();
++        if (string.IsNullOrEmpty(text)) return blocks;
++
++        var strLines = text.Split('\n');
++        MessageBlock? currentBlock = null;
++
++        foreach (var rawLine in strLines)
++        {
++            string lineText = rawLine.TrimEnd('\r');
++            bool isQuote = lineText.StartsWith("> ");
++
++            if (isQuote)
++            {
++                lineText = lineText.Substring(2);
++            }
++            else if (lineText.StartsWith(">"))
++            {
++                lineText = lineText.Substring(1);
++                isQuote = true;
++            }
++
++            if (currentBlock == null || currentBlock.IsQuote != isQuote)
++            {
++                currentBlock = new MessageBlock { IsQuote = isQuote };
++                blocks.Add(currentBlock);
++            }
++
++            currentBlock.Lines.Add(ParseMessageSegments(lineText));
++        }
++        return blocks;
++    }
++
++    private List<MessageSegment> ParseMessageSegments(string text)
++    {
++        var segments = new List<MessageSegment>();
++        if (string.IsNullOrEmpty(text)) return segments;
++
++        // Split text by spaces only, newlines are handled by blocks
++        var parts = text.Split(' ');
++        var currentText = new System.Text.StringBuilder();
++
++        for (int i = 0; i < parts.Length; i++)
++        {
++            var p = parts[i];
++
++            // Check if this part matches an emoji mapping
++            if (EmojiMap.TryGetValue(p, out var emoji))
++            {
++                // Push accumulated text first
++                if (currentText.Length > 0)
++                {
++                    segments.Add(new MessageSegment { Text = currentText.ToString() });
++                    currentText.Clear();
++                }
++
++                segments.Add(new MessageSegment { Text = p, IsEmoji = true, Emoji = emoji });
++
++                // Add a trailing space if it wasn't the last word
++                if (i < parts.Length - 1)
++                {
++                    currentText.Append(" ");
++                }
++            }
++            else if (p.StartsWith(":") && p.EndsWith(":") && p.Length > 2)
++            {
++                // Try searching the dynamically loaded generic emojis
++                var dynamicEmoji = EmojiService.GetEmoji(p);
++                if (dynamicEmoji != null)
++                {
++                    // Push accumulated text first
++                    if (currentText.Length > 0)
++                    {
++                        segments.Add(new MessageSegment { Text = currentText.ToString() });
++                        currentText.Clear();
++                    }
++
++                    segments.Add(new MessageSegment { Text = p, IsEmoji = true, Emoji = dynamicEmoji });
++
++                    if (i < parts.Length - 1)
++                    {
++                        currentText.Append(" ");
++                    }
++                }
++                else
++                {
++                    currentText.Append(p);
++                    if (i < parts.Length - 1)
++                    {
++                        currentText.Append(" ");
++                    }
++                }
++            }
++            else
++            {
++                currentText.Append(p);
++                if (i < parts.Length - 1)
++                {
++                    currentText.Append(" ");
++                }
++            }
++        }
++
++        if (currentText.Length > 0)
++        {
++            segments.Add(new MessageSegment { Text = currentText.ToString() });
++        }
++
++        return segments;
++    }
+ }
+ 
+ <style>
+     /* Message Bubble Styles */
+     .message-bubble {
+         max-width: 70%;
+-        padding: 10px 15px;
++        padding: 5px 10px;
+         border-radius: 10px;
+         position: relative;
+         animation: fadeIn 0.3s ease;
+         margin-bottom: 5px;
+     }
+ 
++    .message-text {
++        padding: 5px;
++        white-space: pre-wrap;
++        word-break: break-word;
++    }
++
++    .message-line {
++        min-height: 1.2em;
++        /* Ensure empty lines take up space */
++    }
++
++    .message-quote {
++        background-color: var(--hover-bg, rgba(255, 255, 255, 0.05));
++        border-left: 3px solid var(--accent-light, #0078d4);
++        padding: 5px 8px;
++        margin: 4px 0;
++        border-radius: 0 4px 4px 0;
++        opacity: 0.85;
++        font-size: 0.85em;
++        font-style: italic;
++    }
++
++    .message-bubble.mine .message-quote {
++        background-color: rgba(255, 255, 255, 0.15);
++        border-left-color: rgba(255, 255, 255, 0.8);
++    }
++
+     .message-bubble.mine {
+         align-self: flex-end;
+         background-color: var(--accent-dark, #0078d4);
+@@ -90,6 +469,13 @@
+         border-bottom-left-radius: 2px;
+     }
+ 
++    .emoji-wrapper {
++        display: inline-flex;
++        align-items: center;
++        vertical-align: middle;
++        margin: 0 2px;
++    }
++
+     .message-bubble:hover .message-actions {
+         opacity: 1;
+         visibility: visible;
+@@ -98,7 +484,6 @@
+     .message-actions {
+         position: absolute;
+         top: -25px;
+-        right: 0;
+         background: var(--card-bg, #2b2b2b);
+         border: 1px solid var(--card-border, #333);
+         border-radius: 4px;
+@@ -112,22 +497,66 @@
+         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+     }
+ 
++    .message-bubble.mine .message-actions {
++        right: 0;
++    }
++
++    .message-bubble.theirs .message-actions {
++        left: 0;
++    }
++
+     .btn-icon {
+         background: none;
+         border: none;
+         cursor: pointer;
+-        font-size: 0.8rem;
+-        padding: 2px;
++        font-size: 1rem;
++        padding: 4px;
+         color: var(--text-primary, #ddd);
++        display: inline-flex;
++        align-items: center;
++        justify-content: center;
++        border-radius: 4px;
++        transition: background-color 0.2s, transform 0.2s;
+     }
+ 
+     .btn-icon:hover {
+-        transform: scale(1.2);
++        background-color: var(--hover-bg, rgba(255, 255, 255, 0.1));
++        transform: scale(1.1);
++    }
++
++    .btn-reaction {
++        padding: 4px 6px;
++    }
++
++    .action-divider {
++        width: 1px;
++        height: 20px;
++        background-color: rgba(255, 255, 255, 0.2);
++    }
++
++    .reaction-badge {
++        display: inline-flex;
++        align-items: center;
++        background-color: var(--card-bg, #2b2b2b);
++        border: 1px solid var(--card-border, #444);
++        border-radius: 14px;
++        padding: 3px 8px;
++        font-size: 0.9rem;
++        color: var(--text-primary, #fff);
++        transition: background-color 0.2s;
++    }
++
++    .reaction-badge:hover {
++        background-color: var(--hover-bg, rgba(255, 255, 255, 0.1));
++    }
++
++    .reaction-count {
++        margin-left: 3px;
+     }
+ 
+ 
+     .message-time {
+-        font-size: 0.65rem;
++        font-size: 0.8rem;
+         margin-top: 5px;
+         opacity: 0.7;
+     }
+diff --git a/ChatApp/Components/Pages/Chat.razor b/ChatApp/Components/Pages/Chat.razor
+index c253199..9691521 100644
+--- a/ChatApp/Components/Pages/Chat.razor
++++ b/ChatApp/Components/Pages/Chat.razor
+@@ -12,6 +12,8 @@
+ @inject IHttpContextAccessor HttpContextAccessor
+ @inject IChatMessageService ChatMessageService
+ @inject IJSRuntime JSRuntime
++@using Microsoft.AspNetCore.Identity
++@inject UserManager<ChatApp.Data.ApplicationUser> UserManager
+ @attribute [Authorize]
+ @implements IAsyncDisposable
+ 
+@@ -33,9 +35,10 @@
+         }
+         else if (SelectedConversation != null)
+         {
+-            <ActiveChatView Conversation="SelectedConversation" IsConnected="IsConnected" OnToggleDetails="ToggleDetails"
+-                OnSend="HandleSend" OnFileUpload="OnFileUpload" OnStartEdit="StartEdit" OnDelete="DeleteMessage"
+-                OnSaveEdit="SaveEdit" OnCancelEdit="CancelEdit" />
++            <ActiveChatView @ref="activeChatView" Conversation="SelectedConversation" IsConnected="IsConnected"
++                OnToggleDetails="ToggleDetails" OnSend="HandleSend" OnFileUpload="OnFileUpload" OnStartEdit="StartEdit"
++                OnDelete="DeleteMessage" OnSaveEdit="SaveEdit" OnCancelEdit="CancelEdit" OnReply="HandleReply"
++                OnToggleReaction="HandleToggleReaction" />
+ 
+             <ChatDetailsModal IsOpen="IsDetailsOpen" Conversation="SelectedConversation" AllUsers="AllUsers"
+                 OnlineUsers="OnlineUsers" CurrentUserId="@currentUserId" OnClose="ToggleDetails"
+@@ -249,6 +252,8 @@
+         HandleMessageReceived);
+         _hubConnection.On<int, string>("MessageEdited", HandleMessageEdited);
+         _hubConnection.On<int>("MessageDeleted", HandleMessageDeleted);
++        _hubConnection.On<int, string, string, string>("ReactionAdded", HandleReactionAdded);
++        _hubConnection.On<int, string, string>("ReactionRemoved", HandleReactionRemoved);
+ 
+         await _hubConnection.StartAsync();
+     }
+@@ -310,6 +315,44 @@
+         });
+     }
+ 
++    private void HandleReactionAdded(int messageId, string userId, string userName, string emoji)
++    {
++        InvokeAsync(() =>
++        {
++            foreach (var conv in Conversations)
++            {
++                var msg = conv.Messages.FirstOrDefault(m => m.Id == messageId);
++                if (msg != null)
++                {
++                    msg.Reactions.Add(new MessageReactionDto { Emoji = emoji, UserId = userId, UserName = userName });
++                    StateHasChanged();
++                    break;
++                }
++            }
++        });
++    }
++
++    private void HandleReactionRemoved(int messageId, string userId, string emoji)
++    {
++        InvokeAsync(() =>
++        {
++            foreach (var conv in Conversations)
++            {
++                var msg = conv.Messages.FirstOrDefault(m => m.Id == messageId);
++                if (msg != null)
++                {
++                    var existing = msg.Reactions.FirstOrDefault(r => r.UserId == userId && r.Emoji == emoji);
++                    if (existing != null)
++                    {
++                        msg.Reactions.Remove(existing);
++                        StateHasChanged();
++                        break;
++                    }
++                }
++            }
++        });
++    }
++
+     private async Task LoadData()
+     {
+         if (currentUserId == null) return;
+@@ -321,6 +364,20 @@
+         // Fetch history using the new Service method
+         var history = await ChatMessageService.GetMessageHistoryAsync(currentUserId);
+ 
++        // Fetch missing usernames for senders/reactors not in current user's visible list (like historical users/groups)
++        var missingUserIds = history.Select(h => h.SenderId)
++        .Concat(history.SelectMany(h => h.Reactions).Select(r => r.UserId))
++        .Where(id => !AllUsers.ContainsKey(id))
++        .Distinct()
++        .ToList();
++
++        var extraUsersNames = new Dictionary<string, string>();
++        foreach (var uid in missingUserIds)
++        {
++            var user = await UserManager.FindByIdAsync(uid);
++            extraUsersNames[uid] = user?.UserName ?? "Unknown User";
++        }
++
+         Conversations.Clear();
+ 
+         foreach (var h in history)
+@@ -354,13 +411,31 @@
+             conversation.Messages.Add(new ChatMessage
+                 {
+                     Id = h.Id,
+-                    User = AllUsers.TryGetValue(h.SenderId, out var u) ? u.UserName : (h.SenderId == currentUserId ? currentUserName :
+-                "Unknown User"), // Fallback if user not visible
++                    User = AllUsers.TryGetValue(h.SenderId, out var u) ? u.UserName : (extraUsersNames.TryGetValue(h.SenderId, out var
++                euName) ? euName : "Unknown User"),
+                     Message = h.Message,
+                     Timestamp = h.Timestamp,
+                     AttachmentUrl = h.AttachmentUrl,
+                     IsMine = h.SenderId == currentUserId,
+-                    SenderId = h.SenderId
++                    SenderId = h.SenderId,
++                    Reactions = h.Reactions.Select(r =>
++                    {
++                        string reactionUserName = "User";
++                        if (AllUsers.TryGetValue(r.UserId, out var ru))
++                        {
++                            reactionUserName = ru.UserName;
++                        }
++                        else if (extraUsersNames.TryGetValue(r.UserId, out var euReacName))
++                        {
++                            reactionUserName = euReacName;
++                        }
++                        return new MessageReactionDto
++                        {
++                            Emoji = r.Emoji,
++                            UserId = r.UserId,
++                            UserName = reactionUserName
++                        };
++                    }).ToList()
+                 });
+         }
+ 
+@@ -450,7 +525,8 @@
+                 Timestamp = timestamp,
+                 AttachmentUrl = attachmentUrl,
+                 IsMine = senderId == currentUserId,
+-                SenderId = senderId
++                SenderId = senderId,
++                Reactions = new List<MessageReactionDto>()
+             };
+ 
+         conversation.Messages.Add(msg);
+@@ -666,6 +742,51 @@
+         }
+     }
+ 
++    // Reaction Actions
++    private async Task HandleToggleReaction((ChatMessage msg, string emoji) args)
++    {
++        if (args.msg.Reactions == null)
++        {
++            args.msg.Reactions = new List<MessageReactionDto>();
++        }
++
++        var existing = args.msg.Reactions.FirstOrDefault(r => r.Emoji == args.emoji && r.UserId == currentUserId);
++        if (existing != null)
++        {
++            await HandleRemoveReaction(args.msg, args.emoji);
++        }
++        else
++        {
++            await HandleAddReaction(args.msg, args.emoji);
++        }
++    }
++
++    private async Task HandleAddReaction(ChatMessage msg, string emoji)
++    {
++        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
++        {
++            await _hubConnection.SendAsync("AddReaction", msg.Id, emoji);
++        }
++    }
++
++    private async Task HandleRemoveReaction(ChatMessage msg, string emoji)
++    {
++        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
++        {
++            await _hubConnection.SendAsync("RemoveReaction", msg.Id, emoji);
++        }
++    }
++
++    private ActiveChatView? activeChatView;
++
++    private async Task HandleReply(ChatMessage msg)
++    {
++        if (activeChatView != null)
++        {
++            await activeChatView.SetReplyMessageAsync(msg);
++        }
++    }
++
+     // UI Helpers for Edit/Delete
+     private void StartEdit(ChatMessage msg)
+     {
+diff --git a/ChatApp/Components/_Imports.razor b/ChatApp/Components/_Imports.razor
+index 7064a1d..9478e67 100644
+--- a/ChatApp/Components/_Imports.razor
++++ b/ChatApp/Components/_Imports.razor
+@@ -9,6 +9,7 @@
+ @using Microsoft.JSInterop
+ @using ChatApp
+ @using ChatApp.Components
++@using Microsoft.FluentUI.AspNetCore.Components
+ @using ChatApp.Models
+ @using ChatApp.Components.Layout
+ @using ChatApp.Components.Chat
+diff --git a/ChatApp/Data/ApplicationDbContext.cs b/ChatApp/Data/ApplicationDbContext.cs
+index ed46260..513134d 100644
+--- a/ChatApp/Data/ApplicationDbContext.cs
++++ b/ChatApp/Data/ApplicationDbContext.cs
+@@ -7,4 +7,5 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
+ {
+     public DbSet<ChatMessage> ChatMessages { get; set; } = default!;
+     public DbSet<ChatRecipient> ChatRecipients { get; set; } = default!;
++    public DbSet<MessageReaction> MessageReactions { get; set; } = default!;
+ }
+diff --git a/ChatApp/Data/ChatMessage.cs b/ChatApp/Data/ChatMessage.cs
+index 21f7714..b06491d 100644
+--- a/ChatApp/Data/ChatMessage.cs
++++ b/ChatApp/Data/ChatMessage.cs
+@@ -21,6 +21,9 @@ public class ChatMessage
+     // Navigation property for recipients (if private/group)
+     // If empty, it's a broadcast to all
+     public List<ChatRecipient> Recipients { get; set; } = new();
++
++    // Navigation property for message reactions
++    public List<MessageReaction> Reactions { get; set; } = new();
+ }
+ 
+ public class ChatRecipient
+@@ -34,3 +37,18 @@ public class ChatRecipient
+     [Required]
+     public string UserId { get; set; } = string.Empty;
+ }
++
++public class MessageReaction
++{
++    public int Id { get; set; }
++
++    public int ChatMessageId { get; set; }
++    [ForeignKey("ChatMessageId")]
++    public ChatMessage? ChatMessage { get; set; }
++
++    [Required]
++    public string UserId { get; set; } = string.Empty;
++
++    [Required]
++    public string Emoji { get; set; } = string.Empty;
++}
+diff --git a/ChatApp/Data/Migrations/ApplicationDbContextModelSnapshot.cs b/ChatApp/Data/Migrations/ApplicationDbContextModelSnapshot.cs
+index 9807dcf..f5778a3 100644
+--- a/ChatApp/Data/Migrations/ApplicationDbContextModelSnapshot.cs
++++ b/ChatApp/Data/Migrations/ApplicationDbContextModelSnapshot.cs
+@@ -141,6 +141,32 @@ namespace ChatApp.Data.Migrations
+                     b.ToTable("ChatRecipients");
+                 });
+ 
++            modelBuilder.Entity("ChatApp.Data.MessageReaction", b =>
++                {
++                    b.Property<int>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("int");
++
++                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
++
++                    b.Property<int>("ChatMessageId")
++                        .HasColumnType("int");
++
++                    b.Property<string>("Emoji")
++                        .IsRequired()
++                        .HasColumnType("nvarchar(max)");
++
++                    b.Property<string>("UserId")
++                        .IsRequired()
++                        .HasColumnType("nvarchar(max)");
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("ChatMessageId");
++
++                    b.ToTable("MessageReactions");
++                });
++
+             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
+                 {
+                     b.Property<string>("Id")
+@@ -306,6 +332,17 @@ namespace ChatApp.Data.Migrations
+                     b.Navigation("ChatMessage");
+                 });
+ 
++            modelBuilder.Entity("ChatApp.Data.MessageReaction", b =>
++                {
++                    b.HasOne("ChatApp.Data.ChatMessage", "ChatMessage")
++                        .WithMany("Reactions")
++                        .HasForeignKey("ChatMessageId")
++                        .OnDelete(DeleteBehavior.Cascade)
++                        .IsRequired();
++
++                    b.Navigation("ChatMessage");
++                });
++
+             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
+                 {
+                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
+@@ -410,6 +447,8 @@ namespace ChatApp.Data.Migrations
+ 
+             modelBuilder.Entity("ChatApp.Data.ChatMessage", b =>
+                 {
++                    b.Navigation("Reactions");
++
+                     b.Navigation("Recipients");
+                 });
+ #pragma warning restore 612, 618
+diff --git a/ChatApp/Hubs/ChatHub.cs b/ChatApp/Hubs/ChatHub.cs
+index 32f8389..77e45b3 100644
+--- a/ChatApp/Hubs/ChatHub.cs
++++ b/ChatApp/Hubs/ChatHub.cs
+@@ -127,4 +127,29 @@ public class ChatHub : Hub
+             await Clients.All.SendAsync("MessageDeleted", messageId);
+         }
+     }
++
++    public async Task AddReaction(int messageId, string emoji)
++    {
++        var currentUserId = Context.UserIdentifier;
++        if (currentUserId == null) return;
++        var userName = Context.User?.Identity?.Name ?? "User";
++
++        bool success = await _chatMessageService.AddReactionAsync(messageId, currentUserId, emoji);
++        if (success)
++        {
++            await Clients.All.SendAsync("ReactionAdded", messageId, currentUserId, userName, emoji);
++        }
++    }
++
++    public async Task RemoveReaction(int messageId, string emoji)
++    {
++        var currentUserId = Context.UserIdentifier;
++        if (currentUserId == null) return;
++
++        bool success = await _chatMessageService.RemoveReactionAsync(messageId, currentUserId, emoji);
++        if (success)
++        {
++            await Clients.All.SendAsync("ReactionRemoved", messageId, currentUserId, emoji);
++        }
++    }
+ }
+diff --git a/ChatApp/Models/ChatModels.cs b/ChatApp/Models/ChatModels.cs
+index 311deb8..5b3d2c0 100644
+--- a/ChatApp/Models/ChatModels.cs
++++ b/ChatApp/Models/ChatModels.cs
+@@ -34,6 +34,14 @@ public class ChatMessage
+     // UI State
+     public bool IsEditing { get; set; }
+     public string EditBuffer { get; set; } = string.Empty;
++    public List<MessageReactionDto> Reactions { get; set; } = new();
++}
++
++public class MessageReactionDto
++{
++    public string Emoji { get; set; } = string.Empty;
++    public string UserId { get; set; } = string.Empty;
++    public string UserName { get; set; } = string.Empty;
+ }
+ 
+ public class UserActivityDto
+diff --git a/ChatApp/Program.cs b/ChatApp/Program.cs
+index 476da7d..77cecb3 100644
+--- a/ChatApp/Program.cs
++++ b/ChatApp/Program.cs
+@@ -1,6 +1,7 @@
+ using Microsoft.AspNetCore.Components.Authorization;
+ using Microsoft.AspNetCore.Identity;
+ using Microsoft.EntityFrameworkCore;
++using Microsoft.FluentUI.AspNetCore.Components;
+ using ChatApp.Components;
+ using ChatApp.Components.Account;
+ using ChatApp.Data;
+@@ -11,10 +12,12 @@ var builder = WebApplication.CreateBuilder(args);
+ builder.Services.AddRazorComponents()
+     .AddInteractiveServerComponents();
+ 
++builder.Services.AddFluentUIComponents();
+ builder.Services.AddControllers();
+ builder.Services.AddSignalR();
+ builder.Services.AddSingleton<ChatApp.Services.ChatStateService>();
+ builder.Services.AddSingleton<ChatApp.Services.IChatMessageService, ChatApp.Services.ChatMessageService>();
++builder.Services.AddSingleton<ChatApp.Services.IEmojiService, ChatApp.Services.EmojiService>();
+ builder.Services.AddHttpContextAccessor();
+ 
+ builder.Services.AddCascadingAuthenticationState();
+diff --git a/ChatApp/Services/ChatMessageService.cs b/ChatApp/Services/ChatMessageService.cs
+index 088bd03..cde520f 100644
+--- a/ChatApp/Services/ChatMessageService.cs
++++ b/ChatApp/Services/ChatMessageService.cs
+@@ -12,6 +12,8 @@ public interface IChatMessageService
+     Task<List<Data.ChatMessage>> GetMessageHistoryAsync(string currentUserId);
+     Task<List<UserActivityDto>> GetUserActivityReportAsync();
+     Task<List<UserMessageDetailDto>> GetUserMessageDetailsAsync(string userId);
++    Task<bool> AddReactionAsync(int messageId, string userId, string emoji);
++    Task<bool> RemoveReactionAsync(int messageId, string userId, string emoji);
+ }
+ 
+ public class ChatMessageService : IChatMessageService
+@@ -77,6 +79,52 @@ public class ChatMessageService : IChatMessageService
+         return false;
+     }
+ 
++    public async Task<bool> AddReactionAsync(int messageId, string userId, string emoji)
++    {
++        using var scope = _scopeFactory.CreateScope();
++        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
++
++        // Check if message exists
++        var msgExists = await db.ChatMessages.AnyAsync(m => m.Id == messageId);
++        if (!msgExists) return false;
++
++        // Check if reaction already exists
++        var existing = await db.MessageReactions
++            .SingleOrDefaultAsync(r => r.ChatMessageId == messageId && r.UserId == userId && r.Emoji == emoji);
++
++        if (existing == null)
++        {
++            db.MessageReactions.Add(new MessageReaction
++            {
++                ChatMessageId = messageId,
++                UserId = userId,
++                Emoji = emoji
++            });
++            await db.SaveChangesAsync();
++            return true;
++        }
++
++        return false;
++    }
++
++    public async Task<bool> RemoveReactionAsync(int messageId, string userId, string emoji)
++    {
++        using var scope = _scopeFactory.CreateScope();
++        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
++
++        var existing = await db.MessageReactions
++            .SingleOrDefaultAsync(r => r.ChatMessageId == messageId && r.UserId == userId && r.Emoji == emoji);
++
++        if (existing != null)
++        {
++            db.MessageReactions.Remove(existing);
++            await db.SaveChangesAsync();
++            return true;
++        }
++
++        return false;
++    }
++
+     public async Task<List<Data.ChatMessage>> GetMessageHistoryAsync(string currentUserId)
+     {
+         using var scope = _scopeFactory.CreateScope();
+@@ -84,6 +132,7 @@ public class ChatMessageService : IChatMessageService
+ 
+         var history = await db.ChatMessages
+             .Include(m => m.Recipients)
++            .Include(m => m.Reactions)
+             .Where(m => !m.Recipients.Any() || m.SenderId == currentUserId || m.Recipients.Any(r => r.UserId == currentUserId))
+             .OrderBy(m => m.Timestamp)
+             .ToListAsync();

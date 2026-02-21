@@ -34,6 +34,14 @@ public class ChatMessage
     // UI State
     public bool IsEditing { get; set; }
     public string EditBuffer { get; set; } = string.Empty;
+    public List<MessageReactionDto> Reactions { get; set; } = new();
+}
+
+public class MessageReactionDto
+{
+    public string Emoji { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
 }
 
 public class UserActivityDto
