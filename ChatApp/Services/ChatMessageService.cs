@@ -7,8 +7,8 @@ namespace ChatApp.Services;
 public interface IChatMessageService
 {
     Task<int> SaveMessageAsync(string senderId, string senderName, string message, List<string>? recipientIds, string? attachmentUrl);
-    Task<bool> EditMessageAsync(int messageId, string newContent);
-    Task<bool> DeleteMessageAsync(int messageId);
+    Task<bool> EditMessageAsync(int messageId, string currentUserId, string newContent);
+    Task<bool> DeleteMessageAsync(int messageId, string currentUserId);
     Task<List<Data.ChatMessage>> GetMessageHistoryAsync(string currentUserId);
     Task<List<UserActivityDto>> GetUserActivityReportAsync();
     Task<List<UserMessageDetailDto>> GetUserMessageDetailsAsync(string userId);
@@ -47,11 +47,11 @@ public class ChatMessageService : IChatMessageService
         return msgEntity.Id;
     }
 
-    public async Task<bool> EditMessageAsync(int messageId, string newContent)
+    public async Task<bool> EditMessageAsync(int messageId, string currentUserId, string newContent)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var msg = await db.ChatMessages.FindAsync(messageId);
+        var msg = await db.ChatMessages.SingleOrDefaultAsync(m => m.Id == messageId && m.SenderId == currentUserId);
 
         if (msg != null)
         {
@@ -62,11 +62,11 @@ public class ChatMessageService : IChatMessageService
         return false;
     }
 
-    public async Task<bool> DeleteMessageAsync(int messageId)
+    public async Task<bool> DeleteMessageAsync(int messageId, string currentUserId)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var msg = await db.ChatMessages.FindAsync(messageId);
+        var msg = await db.ChatMessages.SingleOrDefaultAsync(m => m.Id == messageId && m.SenderId == currentUserId);
 
         if (msg != null)
         {

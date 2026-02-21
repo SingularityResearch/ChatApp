@@ -34,7 +34,9 @@ This application provides a Teams-like user experience with features for group c
 ### Identity & Security
 - **Authentication**: Built on ASP.NET Core Identity.
 - **User Management**: Secure login and registration.
-- **Secure Handling**: Chat ownership checks for edit/delete actions (UI enforced).
+- **Secure File Handling**: Attachments are strictly whitelisted by extension to prevent malicious uploads.
+- **Secure Actions**: Server-side enforced authorization (BOLA/IDOR protection) for message edit and delete actions.
+- **Identity Protection**: Strict server-side mapping of User Identifiers to prevent sender spoofing.
 
 ### Admin Features
 - **Admin Dashboard**: Secure administrative views protected by ASP.NET Authorization Roles.

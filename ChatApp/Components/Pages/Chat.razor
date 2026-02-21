@@ -194,6 +194,10 @@
 
     private string? currentUserId;
     private string? currentUserName;
+
+    // Setup Safe File Extension Whitelist
+    private readonly string[] _allowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".txt", ".docx",
+".xlsx", ".csv" };
     private bool IsConnected => _hubConnection?.State == HubConnectionState.Connected;
     private HubConnection? _hubConnection;
 
@@ -588,7 +592,7 @@
 
             if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
             {
-                await _hubConnection.SendAsync("SendMessage", currentUserName ?? "Unknown", message, recipients, null);
+                await _hubConnection.SendAsync("SendMessage", message, recipients, null);
             }
 
             if (isNewChat)
@@ -624,9 +628,16 @@
 
         if (file != null && currentUserId != null)
         {
+            var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (!_allowedExtensions.Contains(extension))
+            {
+                ShowNotification("System", $"File type {extension} is not allowed for security reasons.");
+                return;
+            }
+
             var uploadPath = Path.Combine("wwwroot", "uploads");
             if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.Name)}";
+            var fileName = $"{Guid.NewGuid()}{extension}";
             var filePath = Path.Combine(uploadPath, fileName);
             await using var fs = new FileStream(filePath, FileMode.Create);
             await file.OpenReadStream(10 * 1024 * 1024).CopyToAsync(fs);
@@ -647,8 +658,7 @@
             {
                 if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
                 {
-                    await _hubConnection.SendAsync("SendMessage", currentUserName ?? "Unknown", $"Sent attachment: {file.Name}", recipients,
-                    attachmentUrl);
+                    await _hubConnection.SendAsync("SendMessage", $"Sent attachment: {file.Name}", recipients, attachmentUrl);
                 }
             }
 

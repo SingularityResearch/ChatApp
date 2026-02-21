@@ -73,7 +73,7 @@ public class ChatHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task SendMessage(string senderName, string message, List<string> recipientIds, string? attachmentUrl = null)
+    public async Task SendMessage(string message, List<string> recipientIds, string? attachmentUrl = null)
     {
         var senderId = Context.UserIdentifier;
         if (senderId == null) return;
@@ -82,6 +82,9 @@ public class ChatHub : Hub
         if (recipientIds == null || recipientIds.Count == 0) return;
 
         var timestamp = DateTime.Now;
+
+        // Prevent Sender Spoofing
+        var senderName = Context.User?.Identity?.Name ?? "Unknown";
 
         // Save to DB using the new service
         int messageId = await _chatMessageService.SaveMessageAsync(senderId, senderName, message, recipientIds, attachmentUrl);
@@ -101,7 +104,10 @@ public class ChatHub : Hub
 
     public async Task EditMessage(int messageId, string newContent)
     {
-        bool success = await _chatMessageService.EditMessageAsync(messageId, newContent);
+        var currentUserId = Context.UserIdentifier;
+        if (currentUserId == null) return;
+
+        bool success = await _chatMessageService.EditMessageAsync(messageId, currentUserId, newContent);
 
         if (success)
         {
@@ -111,7 +117,10 @@ public class ChatHub : Hub
 
     public async Task DeleteMessage(int messageId)
     {
-        bool success = await _chatMessageService.DeleteMessageAsync(messageId);
+        var currentUserId = Context.UserIdentifier;
+        if (currentUserId == null) return;
+
+        bool success = await _chatMessageService.DeleteMessageAsync(messageId, currentUserId);
 
         if (success)
         {
