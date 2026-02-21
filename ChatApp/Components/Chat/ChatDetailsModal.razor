@@ -13,7 +13,8 @@
                 <ul class="list-group list-group-flush">
                     @foreach (var uid in Conversation.ParticipantIds)
                     {
-                        var name = AllUsers.TryGetValue(uid, out var n) ? n : (uid == CurrentUserId ? "You" : "Unknown");
+                        var name = AllUsers.TryGetValue(uid, out var u) ? u.UserName : (uid == CurrentUserId ? "You" :
+                        "Unknown");
                         var isOnline = OnlineUsers.ContainsKey(uid);
 
                         <li class="list-group-item d-flex align-items-center p-2 bg-transparent border-0">
@@ -29,7 +30,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary w-100" @onclick="OnAddPeople">
-                    + Add People
+                    <i class="bi bi-person-plus-fill me-2"></i>Add People
                 </button>
             </div>
         </div>
@@ -39,7 +40,7 @@
 @code {
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public ConversationViewModel? Conversation { get; set; }
-    [Parameter] public Dictionary<string, string> AllUsers { get; set; } = new();
+    [Parameter] public Dictionary<string, UserDto> AllUsers { get; set; } = new();
     [Parameter] public Dictionary<string, string> OnlineUsers { get; set; } = new();
     [Parameter] public string CurrentUserId { get; set; } = string.Empty;
     [Parameter] public EventCallback OnClose { get; set; }

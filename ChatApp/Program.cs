@@ -14,6 +14,8 @@ builder.Services.AddRazorComponents()
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ChatApp.Services.ChatStateService>();
+builder.Services.AddSingleton<ChatApp.Services.IChatMessageService, ChatApp.Services.ChatMessageService>();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();

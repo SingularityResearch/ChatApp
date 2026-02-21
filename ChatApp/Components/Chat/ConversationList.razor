@@ -3,7 +3,7 @@
 <div class="user-list-panel">
     <div class="p-2 d-flex justify-content-between align-items-center border-bottom border-secondary">
         <h5 class="mb-0">Chats</h5>
-        <button class="btn btn-sm btn-primary" @onclick="OnStartNewChat">+</button>
+        <button class="btn btn-sm btn-primary" @onclick="OnStartNewChat"><i class="bi bi-plus-lg"></i></button>
     </div>
 
     <ul class="list-group list-group-flush">
@@ -14,19 +14,31 @@
             <li class="list-group-item @(isSelected ? "active" : "")"
             @onclick="() => OnConversationSelected.InvokeAsync(conv)">
                 <div class="d-flex justify-content-between w-100">
-                    <span class="fw-bold text-truncate">
+                    <div class="d-flex flex-column text-truncate">
+                        <span class="fw-bold text-truncate">
+                            @if (!conv.IsGroup && conv.ConversationId != "global")
+                            {
+                                var otherId = conv.ParticipantIds.FirstOrDefault(id => id != CurrentUserId);
+                                if (otherId != null)
+                                {
+                                    var isOnline = OnlineUsers.ContainsKey(otherId);
+                                    <span class="status-dot @(isOnline ? "online" : "offline")"
+                                        title="@(isOnline ? "Online" : "Offline")"></span>
+                                }
+                            }
+                            @conv.DisplayName
+                        </span>
                         @if (!conv.IsGroup && conv.ConversationId != "global")
                         {
                             var otherId = conv.ParticipantIds.FirstOrDefault(id => id != CurrentUserId);
-                            if (otherId != null)
+                            if (otherId != null && AllUsers.TryGetValue(otherId, out var u) && u.Roles.Any())
                             {
-                                var isOnline = OnlineUsers.ContainsKey(otherId);
-                                <span class="status-dot @(isOnline ? "online" : "offline")"
-                                    title="@(isOnline ? "Online" : "Offline")"></span>
+                                <span class="opacity-75" style="font-size: 0.75rem;">
+                                    @string.Join(", ", u.Roles)
+                                </span>
                             }
                         }
-                        @conv.DisplayName
-                    </span>
+                    </div>
                     @if (conv.IsGroup)
                     {
                         <span class="badge bg-secondary rounded-pill">@(conv.ParticipantIds.Count)</span>
@@ -42,6 +54,7 @@
     [Parameter] public ConversationViewModel? SelectedConversation { get; set; }
     [Parameter] public string CurrentUserId { get; set; } = string.Empty;
     [Parameter] public Dictionary<string, string> OnlineUsers { get; set; } = new();
+    [Parameter] public Dictionary<string, UserDto> AllUsers { get; set; } = new();
     [Parameter] public EventCallback<ConversationViewModel> OnConversationSelected { get; set; }
     [Parameter] public EventCallback OnStartNewChat { get; set; }
 }

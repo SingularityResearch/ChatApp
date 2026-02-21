@@ -1,0 +1,99 @@
+@page "/admin/reporting"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using ChatApp.Services
+@using ChatApp.Models
+@inject IChatMessageService ChatMessageService
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>User Activity Report</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>User Activity Report</h1>
+            <p class="lead">View total message counts and last active user timestamps.</p>
+        </div>
+        <a href="admin" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to Admin</a>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark text-white border-secondary">
+                <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-graph-up pe-2"></i>User Chat Activity</h5>
+                    <button class="btn btn-sm btn-outline-light" @onclick="LoadReport"><i
+                            class="bi bi-arrow-clockwise pe-1"></i>Refresh</button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-dark table-striped table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>User Name</th>
+                                <th>Total Messages Sent</th>
+                                <th>Last Active (Local Time)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (_activities == null)
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-3">Loading report...</td>
+                                </tr>
+                            }
+                            else if (!_activities.Any())
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-3">No user activity found.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var activity in _activities)
+                                {
+                                    <tr style="cursor: pointer;" class="table-active-hover"
+                                    @onclick="() => NavigateToDetails(activity.UserId)">
+                                        <td><strong>@activity.UserName</strong></td>
+                                        <td>@activity.MessageCount</td>
+                                        <td>@(activity.LastActive.HasValue ? activity.LastActive.Value.ToString("g") : "Never")
+                                        </td>
+                                        <td class="text-end"><i class="bi bi-chevron-right text-muted"></i></td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<UserActivityDto>? _activities;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReport();
+    }
+
+    private async Task LoadReport()
+    {
+        _activities = null;
+        _activities = await ChatMessageService.GetUserActivityReportAsync();
+        _activities = _activities.OrderByDescending(a => a.LastActive).ToList();
+        StateHasChanged();
+    }
+
+    private void NavigateToDetails(string userId)
+    {
+        Navigation.NavigateTo($"/admin/reporting/{userId}");
+    }
+}
+
+<style>
+    .table-active-hover:hover {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+</style>

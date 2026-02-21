@@ -1,0 +1,17 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+C:\Users\Chris\source\repos\ChatApp\ChatApp\Components\Pages\Chat.razor(311,24): error CS1002: ; expected [C:\Users\Chris\source\repos\ChatApp\ChatApp\ChatApp.csproj]
+C:\Users\Chris\source\repos\ChatApp\ChatApp\Components\Pages\Chat.razor(311,13): error CS0246: The type or namespace name 'are' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\Chris\source\repos\ChatApp\ChatApp\ChatApp.csproj]
+C:\Users\Chris\source\repos\ChatApp\ChatApp\Components\Pages\Chat.razor(311,24): error CS0246: The type or namespace name 'them' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\Chris\source\repos\ChatApp\ChatApp\ChatApp.csproj]
+C:\Users\Chris\source\repos\ChatApp\ChatApp\Components\Pages\Chat.razor(311,17): warning CS0168: The variable 'hiding' is declared but never used [C:\Users\Chris\source\repos\ChatApp\ChatApp\ChatApp.csproj]
+
+Build FAILED.
+
+C:\Users\Chris\source\repos\ChatApp\ChatApp\Components\Pages\Chat.razor(311,17): warning CS0168: The variable 'hiding' is declared but never used [C:\Users\Chris\source\repos\ChatApp\ChatApp\ChatApp.csproj]
+C:\Users\Chris\source\repos\ChatApp\ChatApp\Components\Pages\Chat.razor(311,24): error CS1002: ; expected [C:\Users\Chris\source\repos\ChatApp\ChatApp\ChatApp.csproj]
+C:\Users\Chris\source\repos\ChatApp\ChatApp\Components\Pages\Chat.razor(311,13): error CS0246: The type or namespace name 'are' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\Chris\source\repos\ChatApp\ChatApp\ChatApp.csproj]
+C:\Users\Chris\source\repos\ChatApp\ChatApp\Components\Pages\Chat.razor(311,24): error CS0246: The type or namespace name 'them' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\Chris\source\repos\ChatApp\ChatApp\ChatApp.csproj]
+    1 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:03.21

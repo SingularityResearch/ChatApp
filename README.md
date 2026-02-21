@@ -37,11 +37,18 @@ This application provides a Teams-like user experience with features for group c
 - **User Management**: Secure login and registration.
 - **Secure Handling**: Chat ownership checks for edit/delete actions (UI enforced).
 
+### Admin Features
+- **Admin Dashboard**: Secure administrative views protected by ASP.NET Authorization Roles.
+- **Role Management**: Control user access levels and group assignments from an intuitive interface.
+- **Reporting & Activity**: 
+    - At-a-glance metrics for total message counts and last-active dates.
+    - Drill-down message history for any user, enabling auditing without exposing sensitive message content.
+
 ## 🛠️ Technologies
 
-- **Framework**: .NET / Blazor Server
+- **Framework**: .NET 10 / Blazor Server
 - **Real-time**: SignalR
-- **Database**: SQLite (Development default)
+- **Database**: SQL Server
 - **ORM**: Entity Framework Core
 - **Styling**: Bootstrap 5 + Custom CSS (Mica Theme)
 

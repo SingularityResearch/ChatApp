@@ -9,7 +9,13 @@
 @rendermode InteractiveServer
 
 <div class="container mt-4">
-    <h3>Role Management</h3>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3>Role Management</h3>
+            <p class="summary-text text-muted mb-0">Manage system roles and users.</p>
+        </div>
+        <a href="admin" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to Admin</a>
+    </div>
 
     <div class="row">
         <!-- Role List -->
@@ -18,7 +24,8 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Roles</h5>
                     <div class="input-group" style="width: 200px;">
-                        <input type="text" class="form-control form-control-sm" placeholder="New Role Name" @bind="NewRoleName" />
+                        <input type="text" class="form-control form-control-sm" placeholder="New Role Name"
+                            @bind="NewRoleName" />
                         <button class="btn btn-sm btn-primary" @onclick="CreateRole">Add</button>
                     </div>
                 </div>
@@ -26,9 +33,9 @@
                     <ul class="list-group list-group-flush">
                         @foreach (var role in Roles)
                         {
-                            <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center @(SelectedRole == role ? "active" : "")" 
-                                @onclick="() => SelectRole(role)" style="cursor: pointer;">
-                                
+                            <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center @(SelectedRole == role ? "active" : "")"
+                            @onclick="() => SelectRole(role)" style="cursor: pointer;">
+
                                 @if (EditingRoleId == role.Id)
                                 {
                                     <div class="input-group input-group-sm" @onclick:stopPropagation="true">
@@ -41,10 +48,12 @@
                                 {
                                     <span>@role.Name</span>
                                     <div>
-                                        @if(role.Name != "Admin")
+                                        @if (role.Name != "Admin")
                                         {
-                                            <button class="btn btn-sm btn-warning py-0 me-1" @onclick="() => StartRoleEdit(role)" @onclick:stopPropagation="true">Edit</button>
-                                            <button class="btn btn-sm btn-danger py-0" @onclick="() => DeleteRole(role)" @onclick:stopPropagation="true">×</button>
+                                            <button class="btn btn-sm btn-warning py-0 me-1" @onclick="() => StartRoleEdit(role)"
+                                            @onclick:stopPropagation="true">Edit</button>
+                                            <button class="btn btn-sm btn-danger py-0" @onclick="() => DeleteRole(role)"
+                                            @onclick:stopPropagation="true">×</button>
                                         }
                                     </div>
                                 }
@@ -59,50 +68,53 @@
         <div class="col-md-6">
             @if (SelectedRole != null)
             {
-                    <div class="card bg-dark text-white">
-                        <div class="card-header">
-                            <h5 class="mb-0">Users in @SelectedRole.Name</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label class="form-label">Add User to Role</label>
-                                <div class="input-group">
-                                    <select class="form-select bg-secondary text-white border-0" @bind="SelectedUserIdToAdd">
-                                        <option value="">Select User...</option>
+                <div class="card bg-dark text-white">
+                    <div class="card-header">
+                        <h5 class="mb-0">Users in @SelectedRole.Name</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Add User to Role</label>
+                            <div class="input-group">
+                                <select class="form-select bg-secondary text-white border-0" @bind="SelectedUserIdToAdd">
+                                    <option value="">Select User...</option>
                                     @foreach (var user in AllUsers.Where(u => !UsersInRole.Contains(u)))
                                     {
-                                                <option value="@user.Id">@user.UserName</option>
+                                        <option value="@user.Id">@user.UserName</option>
                                     }
-                                    </select>
-                                    <button class="btn btn-success" @onclick="AddUserToRole" disabled="@string.IsNullOrEmpty(SelectedUserIdToAdd)">Add</button>
-                                </div>
+                                </select>
+                                <button class="btn btn-success" @onclick="AddUserToRole"
+                                    disabled="@string.IsNullOrEmpty(SelectedUserIdToAdd)">Add</button>
                             </div>
+                        </div>
 
-                            <hr class="border-secondary"/>
+                        <hr class="border-secondary" />
 
-                            <h6>Current Members</h6>
+                        <h6>Current Members</h6>
                         @if (UsersInRole.Any())
                         {
-                                    <ul class="list-group list-group-flush">
+                            <ul class="list-group list-group-flush">
                                 @foreach (var user in UsersInRole)
                                 {
-                                                <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center">
-                                                    <span>@user.UserName <small class="text-muted ms-2">@user.Email</small></span>
-                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveUserFromRole(user)">Remove</button>
-                                                </li>
+                                    <li
+                                        class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center">
+                                        <span>@user.UserName <small class="text-muted ms-2">@user.Email</small></span>
+                                        <button class="btn btn-sm btn-outline-danger"
+                                        @onclick="() => RemoveUserFromRole(user)">Remove</button>
+                                    </li>
                                 }
-                                    </ul>
+                            </ul>
                         }
                         else
                         {
-                                    <p class="text-muted">No users in this role.</p>
+                            <p class="text-muted">No users in this role.</p>
                         }
-                        </div>
                     </div>
+                </div>
             }
             else
             {
-                    <div class="alert alert-info">Select a role to manage users.</div>
+                <div class="alert alert-info">Select a role to manage users.</div>
             }
         </div>
     </div>
@@ -172,11 +184,11 @@
                 role.Name = EditingRoleName;
                 await RoleManager.UpdateAsync(role);
                 await LoadRoles();
-                
+
                 // If the edited role was selected, refresh the header
                 if (SelectedRole?.Id == role.Id)
                 {
-                    SelectedRole = role; 
+                    SelectedRole = role;
                 }
             }
             CancelRoleEdit();

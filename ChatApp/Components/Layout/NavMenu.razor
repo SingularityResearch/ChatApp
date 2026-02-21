@@ -14,7 +14,7 @@
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="chat" Match="NavLinkMatch.All">
-                <span class="bi bi-chat-dots-fill" aria-hidden="true"></span> Chat
+                <i class="bi bi-chat-dots-fill fs-5 me-2" aria-hidden="true"></i> Chat
             </NavLink>
         </div>
 
@@ -22,7 +22,7 @@
             <Authorized>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="admin">
-                        <span class="bi bi-gear-fill" aria-hidden="true"></span> Admin
+                        <i class="bi bi-gear-fill fs-5 me-2" aria-hidden="true"></i> Admin
                     </NavLink>
                 </div>
             </Authorized>
@@ -32,7 +32,7 @@
             <Authorized>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
+                        <i class="bi bi-person-fill fs-5 me-2" aria-hidden="true"></i> @context.User.Identity?.Name
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
@@ -40,7 +40,7 @@
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="@currentUrl" />
                         <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
+                            <i class="bi bi-box-arrow-left fs-5 me-2" aria-hidden="true"></i> Logout
                         </button>
                     </form>
                 </div>
@@ -48,12 +48,12 @@
             <NotAuthorized>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
+                        <i class="bi bi-person-plus-fill fs-5 me-2" aria-hidden="true"></i> Register
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
+                        <i class="bi bi-box-arrow-in-right fs-5 me-2" aria-hidden="true"></i> Login
                     </NavLink>
                 </div>
             </NotAuthorized>

@@ -9,13 +9,15 @@ namespace ChatApp.Hubs;
 public class ChatHub : Hub
 {
     private readonly ChatStateService _chatStateService;
+    private readonly IChatMessageService _chatMessageService;
 
     // Key: UserId, Value: List of ConnectionIds
     private static readonly ConcurrentDictionary<string, List<string>> _userConnections = new();
 
-    public ChatHub(ChatStateService chatStateService)
+    public ChatHub(ChatStateService chatStateService, IChatMessageService chatMessageService)
     {
         _chatStateService = chatStateService;
+        _chatMessageService = chatMessageService;
     }
 
     public override async Task OnConnectedAsync()
@@ -71,52 +73,49 @@ public class ChatHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task SendMessage(string message, List<string> recipientIds, string? attachmentUrl = null)
+    public async Task SendMessage(string senderName, string message, List<string> recipientIds, string? attachmentUrl = null)
     {
         var senderId = Context.UserIdentifier;
+        if (senderId == null) return;
+
+        // Cannot send a message with no recipients (Global chat is disabled)
+        if (recipientIds == null || recipientIds.Count == 0) return;
+
         var timestamp = DateTime.Now;
 
-        // If no recipients specified, broadcast logic (public chat) could go here.
-        // But for this requirement, we assume either explicit selection or broadcast if empty.
+        // Save to DB using the new service
+        int messageId = await _chatMessageService.SaveMessageAsync(senderId, senderName, message, recipientIds, attachmentUrl);
 
-        if (recipientIds == null || recipientIds.Count == 0)
-        {
-            await Clients.All.SendAsync("ReceiveMessage", senderId, message, timestamp, attachmentUrl, false);
-        }
-        else
-        {
-            // Send to sender 
-            await Clients.Caller.SendAsync("ReceiveMessage", senderId, message, timestamp, attachmentUrl, true);
+        // Send to sender 
+        await Clients.Caller.SendAsync("ReceiveMessage", senderId, senderName, message, timestamp, attachmentUrl, true, recipientIds, messageId);
 
-            // Send to recipients
-            foreach (var recipientId in recipientIds)
+        // Send to recipients
+        foreach (var recipientId in recipientIds)
+        {
+            if (_userConnections.TryGetValue(recipientId, out var connections))
             {
-                if (_userConnections.TryGetValue(recipientId, out var connections))
-                {
-                    await Clients.Users(recipientId).SendAsync("ReceiveMessage", senderId, message, timestamp, attachmentUrl, true);
-                }
+                await Clients.Users(recipientId).SendAsync("ReceiveMessage", senderId, senderName, message, timestamp, attachmentUrl, true, recipientIds, messageId);
             }
         }
     }
 
     public async Task EditMessage(int messageId, string newContent)
     {
-        // In a real app we should check ownership here by fetching the message first
-        // But for speed, we'll let the Service handle or trust the client (Note: insecure for prod)
-        // Ideally: fetch message, check if senderId == Context.UserIdentifier
+        bool success = await _chatMessageService.EditMessageAsync(messageId, newContent);
 
-        // Let's at least pass it down
-        await _chatStateService.EditMessage(messageId, newContent);
-
-        // Broadcast to all clients (simplification: we assume we want to update everyone who has this message)
-        // Since we don't know who has it easily without fetching recipients, 
-        // we'll broadcast and let clients ignore if they don't have it.
-        await Clients.All.SendAsync("MessageEdited", messageId, newContent);
+        if (success)
+        {
+            await Clients.All.SendAsync("MessageEdited", messageId, newContent);
+        }
     }
 
     public async Task DeleteMessage(int messageId)
     {
-        await _chatStateService.DeleteMessage(messageId);
-        await Clients.All.SendAsync("MessageDeleted", messageId);
+        bool success = await _chatMessageService.DeleteMessageAsync(messageId);
+
+        if (success)
+        {
+            await Clients.All.SendAsync("MessageDeleted", messageId);
+        }
     }
 }
