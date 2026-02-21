@@ -39,3 +39,17 @@ This document outlines the features and requirements of the ChatApp application 
 
 ### 2.3 Data Persistence
 *   **Relational Storage**: Chat messages, recipients, user states, and reactions are durably stored in a relational database (`ApplicationDbContext`) using Entity Framework Core.
+
+## 3. System Architecture
+
+Below is a high-level system component diagram illustrating the data flow and principal components within the ChatApp.
+
+```mermaid
+graph TD
+    Client[Blazor Client] -->|SignalR WebSockets| Hub[ChatHub]
+    Hub --> StateService[ChatStateService]
+    Hub --> MsgService[ChatMessageService]
+    MsgService --> DbContext[ApplicationDbContext]
+    StateService --> InMemory[(In-Memory State)]
+    DbContext --> DB[(SQL Server Database)]
+```
