@@ -18,7 +18,6 @@ This application provides a Teams-like user experience with features for group c
 - **Conversation Grouping**: 
     - Messages are automatically grouped into conversations (1-on-1 or Groups).
     - Sidebar lists recent chats, sorted by activity.
-    - "General (Everyone)" broadcast channel for all users.
 - **User Presence**: 
     - Real-time **Online/Offline** status indicators.
     - Status dots shown in the sidebar and chat details.
