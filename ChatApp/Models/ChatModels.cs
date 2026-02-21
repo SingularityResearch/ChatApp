@@ -4,6 +4,9 @@ using System.Linq;
 
 namespace ChatApp.Models;
 
+/// <summary>
+/// Data Transfer Object representing a user and their assigned roles.
+/// </summary>
 public class UserDto
 {
     public string Id { get; set; } = string.Empty;
@@ -11,6 +14,9 @@ public class UserDto
     public List<string> Roles { get; set; } = new();
 }
 
+/// <summary>
+/// View model used in the UI to present a specific conversation thread.
+/// </summary>
 public class ConversationViewModel
 {
     public string ConversationId { get; set; } = string.Empty; // Unique Key based on sorted participants
@@ -21,6 +27,9 @@ public class ConversationViewModel
     public bool IsGroup => ParticipantIds.Count > 2; // Me + 2 others = 3 total
 }
 
+/// <summary>
+/// Represents a chat message within the UI view models.
+/// </summary>
 public class ChatMessage
 {
     public int Id { get; set; }
@@ -37,6 +46,9 @@ public class ChatMessage
     public List<MessageReactionDto> Reactions { get; set; } = new();
 }
 
+/// <summary>
+/// Data Transfer Object for carrying reaction details from the server to the client.
+/// </summary>
 public class MessageReactionDto
 {
     public string Emoji { get; set; } = string.Empty;
@@ -44,6 +56,9 @@ public class MessageReactionDto
     public string UserName { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Data Transfer Object summarizing a user's total message activity.
+/// </summary>
 public class UserActivityDto
 {
     public string UserId { get; set; } = string.Empty;
@@ -52,6 +67,9 @@ public class UserActivityDto
     public DateTime? LastActive { get; set; }
 }
 
+/// <summary>
+/// Data Transfer Object providing specific details of a historical chat message involving a user.
+/// </summary>
 public class UserMessageDetailDto
 {
     public int MessageId { get; set; }

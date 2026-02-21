@@ -3,6 +3,8 @@
 A real-time chat application built with **Blazor Server**, **SignalR**, and **EF Core**. 
 This application provides a Teams-like user experience with features for group conversations, online status tracking, multimedia sharing, and message management.
 
+For a detailed list of functional and security features, please refer to the [Requirements Document](requirements.md).
+
 ## 🚀 Features
 
 ### Core Messaging

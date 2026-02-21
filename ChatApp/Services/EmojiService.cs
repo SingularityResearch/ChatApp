@@ -4,22 +4,54 @@ using System.Text.RegularExpressions;
 
 namespace ChatApp.Services;
 
+/// <summary>
+/// Service interface for resolving and providing emojis within the chat system.
+/// </summary>
 public interface IEmojiService
 {
+    /// <summary>
+    /// Gets a list of all available emojis.
+    /// </summary>
     List<Emoji> AllEmojis { get; }
+
+    /// <summary>
+    /// Retrieves a specific emoji by its shortcode.
+    /// </summary>
+    /// <param name="shortcode">The shortcode string (e.g., ":smile:").</param>
+    /// <returns>The corresponding <see cref="Emoji"/> if found, otherwise null.</returns>
     Emoji? GetEmoji(string shortcode);
+
+    /// <summary>
+    /// Gets the Unicode representation of an emoji by its name.
+    /// </summary>
+    /// <param name="emojiName">The name of the emoji.</param>
+    /// <returns>The Unicode string if found, otherwise an empty string.</returns>
     string GetUnicode(string emojiName);
+
+    /// <summary>
+    /// Generates or retrieves the shortcode for a given emoji instance.
+    /// </summary>
+    /// <param name="emoji">The <see cref="Emoji"/> instance.</param>
+    /// <returns>A string representing the emoji's shortcode.</returns>
     string GetShortcode(Emoji emoji);
 }
 
+/// <summary>
+/// Implementation of <see cref="IEmojiService"/> that loads emojis from the FluentUI library and a local JSON mapping.
+/// </summary>
 public class EmojiService : IEmojiService
 {
     private readonly List<Emoji> _allEmojis = new();
     private readonly Dictionary<string, Emoji> _emojiMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _unicodeMap = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <inheritdoc/>
     public List<Emoji> AllEmojis => _allEmojis;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EmojiService"/> class.
+    /// </summary>
+    /// <param name="env">The web host environment used to locate the emoji JSON map.</param>
     public EmojiService(Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
     {
         LoadUnicodeMap(env.WebRootPath);
@@ -115,12 +147,14 @@ public class EmojiService : IEmojiService
         return $":{snakeCase}:";
     }
 
+    /// <inheritdoc/>
     public string GetShortcode(Emoji emoji)
     {
         var match = _emojiMap.FirstOrDefault(kvp => kvp.Value.Name == emoji.Name);
         return match.Key ?? $":{emoji.Name.Replace(" ", "_").ToLower()}:";
     }
 
+    /// <inheritdoc/>
     public Emoji? GetEmoji(string shortcode)
     {
         if (_emojiMap.TryGetValue(shortcode, out var emoji))
@@ -130,6 +164,7 @@ public class EmojiService : IEmojiService
         return null;
     }
 
+    /// <inheritdoc/>
     public string GetUnicode(string emojiName)
     {
         // emojiName comes in as "GrinningFace", convert to "grinning_face"

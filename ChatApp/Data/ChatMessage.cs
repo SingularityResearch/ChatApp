@@ -3,6 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ChatApp.Data;
 
+/// <summary>
+/// Entity representing a chat message stored in the database.
+/// </summary>
 public class ChatMessage
 {
     public int Id { get; set; }
@@ -26,6 +29,9 @@ public class ChatMessage
     public List<MessageReaction> Reactions { get; set; } = new();
 }
 
+/// <summary>
+/// Entity representing a specific recipient of a private or group chat message.
+/// </summary>
 public class ChatRecipient
 {
     public int Id { get; set; }
@@ -38,6 +44,9 @@ public class ChatRecipient
     public string UserId { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Entity representing a user's emoji reaction to a specific chat message.
+/// </summary>
 public class MessageReaction
 {
     public int Id { get; set; }

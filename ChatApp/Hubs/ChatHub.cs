@@ -5,21 +5,26 @@ using ChatApp.Services;
 
 namespace ChatApp.Hubs;
 
+/// <summary>
+/// Hub for handling real-time chat communication and events via SignalR.
+/// </summary>
+/// <param name="chatStateService">Service to manage user online states.</param>
+/// <param name="chatMessageService">Service to manage chat messages and reactions.</param>
 [Authorize]
-public class ChatHub : Hub
+public class ChatHub(ChatStateService chatStateService, IChatMessageService chatMessageService) : Hub
 {
-    private readonly ChatStateService _chatStateService;
-    private readonly IChatMessageService _chatMessageService;
+    private readonly ChatStateService _chatStateService = chatStateService;
+    private readonly IChatMessageService _chatMessageService = chatMessageService;
 
     // Key: UserId, Value: List of ConnectionIds
     private static readonly ConcurrentDictionary<string, List<string>> _userConnections = new();
 
-    public ChatHub(ChatStateService chatStateService, IChatMessageService chatMessageService)
-    {
-        _chatStateService = chatStateService;
-        _chatMessageService = chatMessageService;
-    }
 
+    /// <summary>
+    /// Called when a new connection is established with the hub.
+    /// Tracks user connection and broadcasts online status to others.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous connect operation.</returns>
     public override async Task OnConnectedAsync()
     {
         var userId = Context.UserIdentifier;
@@ -28,7 +33,7 @@ public class ChatHub : Hub
         if (userId != null)
         {
             _userConnections.AddOrUpdate(userId,
-                key => new List<string> { Context.ConnectionId },
+                key => [Context.ConnectionId],
                 (key, list) =>
                 {
                     lock (list)
@@ -49,6 +54,12 @@ public class ChatHub : Hub
         await base.OnConnectedAsync();
     }
 
+    /// <summary>
+    /// Called when a connection with the hub is terminated.
+    /// Removes user connection tracking and broadcasts offline status if no connections remain.
+    /// </summary>
+    /// <param name="exception">An optional exception that occurred causing the disconnection.</param>
+    /// <returns>A task that represents the asynchronous disconnect operation.</returns>
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         var userId = Context.UserIdentifier;
@@ -73,6 +84,14 @@ public class ChatHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
+    /// <summary>
+    /// Sends a message to a list of specified recipients.
+    /// Saves the message to the database and broadcasts to connected clients.
+    /// </summary>
+    /// <param name="message">The text content of the message.</param>
+    /// <param name="recipientIds">A list of user IDs to receive the message.</param>
+    /// <param name="attachmentUrl">An optional URL to an attached file.</param>
+    /// <returns>A task that represents the asynchronous send operation.</returns>
     public async Task SendMessage(string message, List<string> recipientIds, string? attachmentUrl = null)
     {
         var senderId = Context.UserIdentifier;
@@ -95,13 +114,19 @@ public class ChatHub : Hub
         // Send to recipients
         foreach (var recipientId in recipientIds)
         {
-            if (_userConnections.TryGetValue(recipientId, out var connections))
+            if (_userConnections.TryGetValue(recipientId, out _))
             {
                 await Clients.Users(recipientId).SendAsync("ReceiveMessage", senderId, senderName, message, timestamp, attachmentUrl, true, recipientIds, messageId);
             }
         }
     }
 
+    /// <summary>
+    /// Edits an existing message if the caller is the sender.
+    /// </summary>
+    /// <param name="messageId">The unique ID of the message to edit.</param>
+    /// <param name="newContent">The updated text content.</param>
+    /// <returns>A task that represents the asynchronous edit operation.</returns>
     public async Task EditMessage(int messageId, string newContent)
     {
         var currentUserId = Context.UserIdentifier;
@@ -115,6 +140,11 @@ public class ChatHub : Hub
         }
     }
 
+    /// <summary>
+    /// Deletes an existing message if the caller is the sender.
+    /// </summary>
+    /// <param name="messageId">The unique ID of the message to delete.</param>
+    /// <returns>A task that represents the asynchronous delete operation.</returns>
     public async Task DeleteMessage(int messageId)
     {
         var currentUserId = Context.UserIdentifier;
@@ -128,6 +158,12 @@ public class ChatHub : Hub
         }
     }
 
+    /// <summary>
+    /// Adds an emoji reaction to a specific message.
+    /// </summary>
+    /// <param name="messageId">The unique ID of the message.</param>
+    /// <param name="emoji">The shortcode string representing the emoji.</param>
+    /// <returns>A task that represents the asynchronous add reaction operation.</returns>
     public async Task AddReaction(int messageId, string emoji)
     {
         var currentUserId = Context.UserIdentifier;
@@ -141,6 +177,12 @@ public class ChatHub : Hub
         }
     }
 
+    /// <summary>
+    /// Removes a previously added emoji reaction from a message.
+    /// </summary>
+    /// <param name="messageId">The unique ID of the message.</param>
+    /// <param name="emoji">The shortcode string representing the emoji.</param>
+    /// <returns>A task that represents the asynchronous remove reaction operation.</returns>
     public async Task RemoveReaction(int messageId, string emoji)
     {
         var currentUserId = Context.UserIdentifier;
