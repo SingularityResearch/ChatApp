@@ -10,18 +10,9 @@ namespace ChatApp.Services;
 /// <summary>
 /// Service responsible for tracking which users are currently online and determining their visibility to other users.
 /// </summary>
-public class ChatStateService
+/// <param name="scopeFactory">A factory for creating dependency injection scopes.</param>
+public class ChatStateService(IServiceScopeFactory scopeFactory)
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ChatStateService"/> class.
-    /// </summary>
-    /// <param name="scopeFactory">A factory for creating dependency injection scopes.</param>
-    public ChatStateService(IServiceScopeFactory scopeFactory)
-    {
-        _scopeFactory = scopeFactory;
-    }
 
     /// <summary>
     /// Event triggered when a user's online state changes.
@@ -29,7 +20,7 @@ public class ChatStateService
     public event Action? OnChange; // General state change
 
     // UserId -> UserName (Email)
-    private ConcurrentDictionary<string, string> _onlineUsers = new();
+    private readonly ConcurrentDictionary<string, string> _onlineUsers = new();
 
     /// <summary>
     /// Marks a user as online.
@@ -81,18 +72,18 @@ public class ChatStateService
     /// <returns>A list of user data transfer objects representing visible users.</returns>
     public async Task<List<UserDto>> GetVisibleUsersAsync(string userId)
     {
-        using var scope = _scopeFactory.CreateScope();
+        using var scope = scopeFactory.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
         var user = await userManager.FindByIdAsync(userId);
-        if (user == null) return new List<UserDto>();
+        if (user == null) return [];
 
         var roles = await userManager.GetRolesAsync(user);
 
         // Strategy: If user has no roles, they see no one (or maybe only admins? let's stick to strict isolation)
         // Strictly: share a role.
 
-        if (!roles.Any()) return new List<UserDto>();
+        if (!roles.Any()) return [];
 
         var visibleUsers = new HashSet<string>();
         var results = new List<UserDto>();
@@ -109,7 +100,7 @@ public class ChatStateService
                     {
                         Id = u.Id,
                         UserName = u.UserName ?? "Unknown",
-                        Roles = userRoles.ToList()
+                        Roles = [.. userRoles]
                     });
                 }
             }

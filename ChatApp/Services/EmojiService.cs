@@ -39,9 +39,9 @@ public interface IEmojiService
 /// <summary>
 /// Implementation of <see cref="IEmojiService"/> that loads emojis from the FluentUI library and a local JSON mapping.
 /// </summary>
-public class EmojiService : IEmojiService
+public partial class EmojiService : IEmojiService
 {
-    private readonly List<Emoji> _allEmojis = new();
+    private readonly List<Emoji> _allEmojis = [];
     private readonly Dictionary<string, Emoji> _emojiMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _unicodeMap = new(StringComparer.OrdinalIgnoreCase);
 
@@ -104,10 +104,10 @@ public class EmojiService : IEmojiService
 
     private void LoadAllEmojis()
     {
-        string[] assemblies = {
+        string[] assemblies = [
             "SmileysEmotion", "PeopleBody", "AnimalsNature",
             "FoodDrink", "TravelPlaces", "Activities", "Objects", "Symbols"
-        };
+        ];
 
         foreach (var assemblyName in assemblies)
         {
@@ -138,12 +138,15 @@ public class EmojiService : IEmojiService
         }
     }
 
-    private string GenerateShortcode(string emojiName)
+    [GeneratedRegex("([a-z])([A-Z])")]
+    private static partial Regex CamelCaseRegex();
+
+    private static string GenerateShortcode(string emojiName)
     {
         if (string.IsNullOrEmpty(emojiName)) return "::";
 
         // Convert "GrinningFace" -> "grinning_face" and replace spaces
-        string snakeCase = Regex.Replace(emojiName, "([a-z])([A-Z])", "$1_$2").Replace(" ", "_").ToLower();
+        string snakeCase = CamelCaseRegex().Replace(emojiName, "$1_$2").Replace(" ", "_").ToLower();
         return $":{snakeCase}:";
     }
 
@@ -168,7 +171,7 @@ public class EmojiService : IEmojiService
     public string GetUnicode(string emojiName)
     {
         // emojiName comes in as "GrinningFace", convert to "grinning_face"
-        string snakeCase = Regex.Replace(emojiName, "([a-z])([A-Z])", "$1_$2").ToLower();
+        string snakeCase = CamelCaseRegex().Replace(emojiName, "$1_$2").ToLower();
 
         if (_unicodeMap.TryGetValue(snakeCase, out string? unicode))
         {

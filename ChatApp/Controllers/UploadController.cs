@@ -6,19 +6,12 @@ namespace ChatApp.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [Authorize]
-public class UploadController : ControllerBase
+public class UploadController(IWebHostEnvironment environment) : ControllerBase
 {
-    private readonly IWebHostEnvironment _environment;
-
-    public UploadController(IWebHostEnvironment environment)
-    {
-        _environment = environment;
-    }
-
     [HttpPost]
     public async Task<IActionResult> Upload(List<IFormFile> files)
     {
-        var uploadPath = Path.Combine(_environment.WebRootPath, "uploads");
+        var uploadPath = Path.Combine(environment.WebRootPath, "uploads");
         if (!Directory.Exists(uploadPath))
         {
             Directory.CreateDirectory(uploadPath);
@@ -48,7 +41,7 @@ public class UploadController : ControllerBase
         {
             return Ok(new { url = uploadedUrls[0] });
         }
-        
+
         return Ok(new { urls = uploadedUrls });
     }
 }
