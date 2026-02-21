@@ -62,11 +62,11 @@ This application provides a Teams-like user experience with features for group c
 1. **Clone the repository**
    ```bash
    git clone https://github.com/SingularityResearch/ChatApp.git
-   cd ChatApp
+   cd ChatApp/ChatApp
    ```
 
 2. **Database Setup**
-   The app uses SQLite by default. The database is created automatically on first run via migrations.
+   The app uses SQL Server. Update the `DefaultConnection` string in `appsettings.json` to point to your instance, then apply the migrations to create the database:
    ```bash
    dotnet ef database update
    ```
@@ -77,14 +77,16 @@ This application provides a Teams-like user experience with features for group c
    ```
 
 4. **Access the App**
-   Open your browser to `http://localhost:5238` (or the port shown in your terminal).
+   Open your browser to `http://localhost:5000` or `https://localhost:5001` (or the port shown in your terminal).
 
 ## 🧩 Project Structure
 
 - **Components/Pages/Chat.razor**: The core chat interface handling UI, logic, and events.
-- **Hubs/ChatHub.cs**: SignalR Hub managing real-time connections and presence.
-- **Services/ChatStateService.cs**: Manages in-memory state for online users and message broadcasting.
-- **Data/**: EF Core context and migrations.
+- **Components/Admin/**: Secure administrative views, role management, and detailed activity reports.
+- **Hubs/ChatHub.cs**: SignalR Hub managing real-time connections, presence, and message distribution.
+- **Services/ChatMessageService.cs**: Data access service for efficiently reading and writing chat payloads to SQL Server.
+- **Services/ChatStateService.cs**: Manages in-memory state tracking to observe which users are currently online.
+- **Data/**: EF Core context, models, and migrations.
 
 ## 🤝 Contributing
 
