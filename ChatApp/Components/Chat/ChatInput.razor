@@ -62,10 +62,7 @@
         </div>
 
         <div class="chat-input-actions d-flex align-items-center">
-            <button class="btn btn-icon btn-sm text-light" type="button" title="Rich Text Editor"
-            @onclick="OpenRichTextEditor">
-                <i class="bi bi-fonts"></i>
-            </button>
+
 
             <div class="position-relative d-inline-block">
                 <button class="btn btn-icon btn-sm text-light" @onclick="ToggleEmojiPicker" type="button"
@@ -167,7 +164,31 @@ this.style.height = (this.scrollHeight) + 'px';
         {
             if (_messageInput != value)
             {
-                _messageInput = value;
+                var newValue = value;
+
+                // Check for inline shortcut replacement
+                // Only do this if the input ended with a space, to allow the user to type shortcuts
+                if (newValue.EndsWith(" ") && !string.IsNullOrWhiteSpace(newValue))
+                {
+                    var words = newValue.Split(' ');
+                    if (words.Length > 1)
+                    {
+                        var lastWord = words[words.Length - 2];
+                        if (ChatApp.Services.EmojiConstants.EmojiMap.TryGetValue(lastWord, out var emoji))
+                        {
+                            string unicode = EmojiService.GetUnicode(emoji.Name);
+                            string insertText = string.IsNullOrEmpty(unicode)
+                            ? EmojiService.GetShortcode(emoji)
+                            : unicode;
+
+                            // replace lastWord with insertText
+                            words[words.Length - 2] = insertText;
+                            newValue = string.Join(" ", words);
+                        }
+                    }
+                }
+
+                _messageInput = newValue;
                 CheckForInlineSuggestions();
             }
         }
@@ -203,11 +224,7 @@ this.style.height = (this.scrollHeight) + 'px';
         ShowEmojiPicker = !ShowEmojiPicker;
     }
 
-    private void OpenRichTextEditor()
-    {
-        // Placeholder for the rich text editor overlay to be implemented later
-        // Currently mapped to the A/pencil button as requested
-    }
+
 
     private void InsertEmoji(Microsoft.FluentUI.AspNetCore.Components.Emoji emoji)
     {

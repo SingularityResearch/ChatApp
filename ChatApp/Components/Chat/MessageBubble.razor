@@ -1,5 +1,6 @@
 @using ChatApp.Models
 @inject ChatApp.Services.IEmojiService EmojiService
+@inject IJSRuntime JSRuntime
 
 <div class="message-bubble @(Message.IsMine ? "mine" : "theirs")">
 
@@ -44,7 +45,7 @@
 
                 <!-- Full Emoji Picker Toggle -->
                 <div class="position-relative d-inline-block">
-                    <button class="btn-icon btn-reaction" @onclick="ToggleEmojiPicker" title="More Reactions" type="button">
+                    <button id="emoji-btn-@Message.Id" class="btn-icon btn-reaction" @onclick="ToggleEmojiPicker" title="More Reactions" type="button">
                         <div class="position-relative d-inline-flex"
                             style="width: 20px; height: 20px; align-items: center; justify-content: center;">
                             <i class="bi bi-emoji-smile" style="font-size: 19px; line-height: 1;"></i>
@@ -57,8 +58,8 @@
                         <div class="emoji-picker-backdrop" @onclick="() => ShowEmojiPicker = false"
                             style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; background: transparent;">
                         </div>
-                        <div class="emoji-picker popup shadow rounded p-2" id="message-emoji-picker"
-                            style="position: absolute; right: 0; bottom: 120%; z-index: 1001; background: var(--card-bg, #2b2b2b); border: 1px solid var(--card-border, #333); width: 280px;">
+                        <div class="emoji-picker popup shadow rounded p-2" id="emoji-picker-@Message.Id"
+                            style="z-index: 1001; background: #2b2b2b; border: 1px solid var(--card-border, #333); width: 280px; display: none;">
                             <div class="mb-2">
                                 <input type="text" class="form-control form-control-sm text-white"
                                     style="background-color: var(--mica-alt-bg);" placeholder="Search emojis..."
@@ -189,7 +190,7 @@
         <div class="message-reactions mt-1 d-flex flex-wrap gap-1">
             @foreach (var group in Message.Reactions.GroupBy(r => r.Emoji))
             {
-                var reactionObj = EmojiMap.TryGetValue(group.Key, out var emj) ? emj : EmojiService.GetEmoji(group.Key);
+                var reactionObj = ChatApp.Services.EmojiConstants.EmojiMap.TryGetValue(group.Key, out var emj) ? emj : EmojiService.GetEmoji(group.Key);
                 if (reactionObj != null)
                 {
                     <button class="reaction-badge" title="@string.Join(", ", group.Select(r => r.UserName))"
@@ -228,9 +229,14 @@
     private bool ShowEmojiPicker { get; set; } = false;
     private string emojiSearchTerm { get; set; } = "";
 
-    private void ToggleEmojiPicker()
+    private async Task ToggleEmojiPicker()
     {
         ShowEmojiPicker = !ShowEmojiPicker;
+        if (ShowEmojiPicker)
+        {
+            await Task.Delay(10);
+            await JSRuntime.InvokeVoidAsync("positionEmojiPicker", $"emoji-btn-{Message.Id}", $"emoji-picker-{Message.Id}");
+        }
     }
 
     private List<List<Microsoft.FluentUI.AspNetCore.Components.Emoji>> GetEmojiChunks()
@@ -271,37 +277,7 @@
         public List<List<MessageSegment>> Lines { get; set; } = new();
     }
 
-    private static readonly Dictionary<string, Microsoft.FluentUI.AspNetCore.Components.Emoji> EmojiMap =
-    new(StringComparer.OrdinalIgnoreCase)
-        {
-{ ":grinning:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.GrinningFace() },
-{ ":)", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.GrinningFace() },
-{ ":smile:", new
-Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.SmilingFaceWithSmilingEyes() },
-{ ":+1:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.PeopleBody.Color.Default.ThumbsUp() },
-{ ":thumbsup:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.PeopleBody.Color.Default.ThumbsUp() },
-{ "<3", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RedHeart() },
-{ ":heart:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RedHeart() },
-{ ":joy:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithTearsOfJoy() },
-{ ":rofl:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.RollingOnTheFloorLaughing()
-},
-{ ":sad:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FrowningFace() },
-{ ":(", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FrowningFace() },
-{ ":cry:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.CryingFace() },
-{ ":sob:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.LoudlyCryingFace() },
-{ ":angry:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.AngryFace() },
-{ ">(", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.AngryFace() },
-{ ":wink:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.WinkingFace() },
-{ ";)", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.WinkingFace() },
-{ ":sunglasses:", new
-Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.SmilingFaceWithSunglasses() },
-{ ":fire:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.TravelPlaces.Color.Default.Fire() },
-{ ":star:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.TravelPlaces.Color.Default.Star() },
-{ ":rocket:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.TravelPlaces.Color.Default.Rocket() },
-{ ":check:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.Symbols.Color.Default.CheckMarkButton() },
-{ ":x:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.Symbols.Color.Default.CrossMark() },
-{ ":o:", new Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.FaceWithOpenMouth() }
-        };
+
 
     private List<MessageBlock> ParseMessageToBlocks(string? text)
     {
@@ -351,7 +327,7 @@ Microsoft.FluentUI.AspNetCore.Components.Emojis.SmileysEmotion.Color.Default.Smi
             var p = parts[i];
 
             // Check if this part matches an emoji mapping
-            if (EmojiMap.TryGetValue(p, out var emoji))
+            if (ChatApp.Services.EmojiConstants.EmojiMap.TryGetValue(p, out var emoji))
             {
                 // Push accumulated text first
                 if (currentText.Length > 0)
