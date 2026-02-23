@@ -4,7 +4,7 @@
 
 The DevSecOps pipeline performs the following steps:
 - **Source Code Checkout**: Jenkins checks out the source code from GitHub via a webhook.
-- **Security Scans**: Jenkins runs code security scans using:
+- **Security Scans**: Jenkins runs code security scans using the following tools, which create reports on detected security issues and code linting issues:
   - SonarQube
   - Coverity
   - BlackDuck
