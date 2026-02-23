@@ -40,6 +40,8 @@ graph TD
             Build[Compile .NET 10]
         end
 
+        Reports[Security & Linting Reports]
+
         subgraph AzureGov [Azure Government Cloud]
             AppServicePlan[Azure App Service Plan]
             WebApp[Azure Web App]
@@ -64,6 +66,11 @@ graph TD
     Jenkins --> SecurityScans
     Jenkins --> Build
     
+    %% Reporting
+    SonarQube -- Generates --> Reports
+    Coverity -- Generates --> Reports
+    BlackDuck -- Generates --> Reports
+    
     %% Deployment Flow
     Build -- Deploys Application --> WebApp
     Build -- Deploys Schema --> AzureSQL
@@ -87,4 +94,5 @@ graph TD
     %% Data Traffic
     Users -- Web VPN --> InternalVM
     InternalVM -- HTTPS : 443 --> WebAppPE
+    InternalVM -- Views --> Reports
 ```
