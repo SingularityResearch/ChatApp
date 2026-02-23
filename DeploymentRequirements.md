@@ -67,6 +67,9 @@ graph TD
     WebApp --- WebAppPE
     AzureSQL --- SqlPE
     
+    %% Communication
+    WebApp -- Reads/Writes Data --> AzureSQL
+    
     %% Encryption
     AzureSQL -. Transparent Data Encryption .-> AzureSQL
     
