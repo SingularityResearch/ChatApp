@@ -68,7 +68,7 @@ graph TD
     AzureSQL --- SqlPE
     
     %% Communication
-    WebApp -- Reads/Writes Data --> AzureSQL
+    WebApp -- Port 1433 --> SqlPE
     
     %% Encryption
     AzureSQL -. Transparent Data Encryption .-> AzureSQL
