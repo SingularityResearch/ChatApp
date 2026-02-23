@@ -6,6 +6,8 @@ from docx.oxml import OxmlElement
 import markdown
 import re
 import os
+import zlib
+import base64
 
 def add_bookmark(paragraph, bookmark_text, bookmark_name):
     run = paragraph.add_run()
@@ -25,19 +27,35 @@ def add_bookmark(paragraph, bookmark_text, bookmark_name):
 def create_toc(doc):
     paragraph = doc.add_paragraph()
     run = paragraph.add_run()
-    fldChar = OxmlElement('w:fldChar')
-    fldChar.set(qn('w:fldCharType'), 'begin')
+    
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+    
     instrText = OxmlElement('w:instrText')
     instrText.set(qn('xml:space'), 'preserve')
     instrText.text = 'TOC \\o "1-3" \\h \\z \\u'
+    
     fldChar2 = OxmlElement('w:fldChar')
     fldChar2.set(qn('w:fldCharType'), 'separate')
+    
     fldChar3 = OxmlElement('w:fldChar')
     fldChar3.set(qn('w:fldCharType'), 'end')
-    run._r.append(fldChar)
+    
+    run._r.append(fldChar1)
     run._r.append(instrText)
     run._r.append(fldChar2)
     run._r.append(fldChar3)
+
+def enable_update_fields_on_open(doc):
+    # This setting forces Microsoft Word to update the Table of Contents upon opening of the file
+    element = doc.settings.element
+    update_fields = OxmlElement('w:updateFields')
+    update_fields.set(qn('w:val'), 'true')
+    element.append(update_fields)
+
+def encode_kroki(text):
+    compressed = zlib.compress(text.encode('utf-8'))
+    return base64.urlsafe_b64encode(compressed).decode('utf-8')
 
 def parse_markdown_to_docx(filepath, doc):
     with open(filepath, 'r', encoding='utf-8') as f:
@@ -45,22 +63,65 @@ def parse_markdown_to_docx(filepath, doc):
 
     lines = content.split('\n')
     in_code_block = False
+    code_lang = ''
+    code_lines = []
     
     for line in lines:
         if line.startswith('```'):
-            in_code_block = not in_code_block
-            if in_code_block:
-                 p = doc.add_paragraph()
-                 p.style = 'Normal'
+            if not in_code_block:
+                in_code_block = True
+                code_lang = line[3:].strip()
+                code_lines = []
+            else:
+                in_code_block = False
+                if code_lang == 'mermaid':
+                    mermaid_code = '\n'.join(code_lines)
+                    try:
+                        encoded = encode_kroki(mermaid_code)
+                        url = f"https://kroki.io/mermaid/png/{encoded}"
+                        
+                        import urllib.request
+                        temp_img = "temp_mermaid.png"
+                        
+                        req = urllib.request.Request(
+                            url, 
+                            data=None, 
+                            headers={
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                            }
+                        )
+                        with urllib.request.urlopen(req) as response, open(temp_img, 'wb') as out_file:
+                            data = response.read()
+                            out_file.write(data)
+                            
+                        # Add white background to make lines visible
+                        try:
+                            from PIL import Image
+                            img = Image.open(temp_img)
+                            if img.mode in ('RGBA', 'LA'):
+                                bg = Image.new('RGB', img.size, (255, 255, 255))
+                                bg.paste(img, mask=img.split()[-1])
+                                bg.save(temp_img)
+                        except Exception as img_e:
+                            print(f"Failed to process image background: {img_e}")
+                        
+                        doc.add_picture(temp_img, width=Inches(6.0))
+                        
+                        if os.path.exists(temp_img):
+                            os.remove(temp_img)
+                    except Exception as e:
+                        print(f"Failed to render mermaid diagram: {e}")
+                        doc.add_paragraph(f"Failed to render mermaid diagram: {e}")
+                else:
+                    p = doc.add_paragraph()
+                    p.style = 'No Spacing'
+                    p.paragraph_format.left_indent = Inches(0.5)
+                    for code_line in code_lines:
+                        p.add_run(code_line + '\n').font.name = 'Courier New'
             continue
             
         if in_code_block:
-             p = doc.add_paragraph(line)
-             p.style = 'No Spacing'
-             p.paragraph_format.left_indent = Inches(0.5)
-             for run in p.runs:
-                 run.font.name = 'Courier New'
-                 run.font.size = Pt(9)
+             code_lines.append(line)
              continue
 
         if line.startswith('# '):
@@ -119,6 +180,8 @@ def build_solution_arch_doc():
             parse_markdown_to_docx(file, doc)
             doc.add_page_break()
             
+    enable_update_fields_on_open(doc)
+    
     doc.save('../SolutionArchitecture.docx')
     print("Successfully generated SolutionArchitecture.docx in the project root")
 
