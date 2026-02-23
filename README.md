@@ -35,7 +35,7 @@ For deployment requirements and diagrams, please refer to the [Deployment Requir
     - **Responsive**: Adaptive layout for sidebar and main chat area.
 
 ### Identity & Security
-- **Authentication**: Built on ASP.NET Core Identity.
+- **Authentication**: Built on ASP.NET Core Identity, using Active Directory as the authentication provider.
 - **User Management**: Secure login and registration.
 - **Secure File Handling**: Attachments are strictly whitelisted by extension to prevent malicious uploads.
 - **Secure Actions**: Server-side enforced authorization (BOLA/IDOR protection) for message edit and delete actions.
