@@ -40,6 +40,10 @@ This document outlines the features and requirements of the ChatApp application 
 ### 2.3 Data Persistence
 *   **Relational Storage**: Chat messages, recipients, user states, and reactions are durably stored in a relational database (`ApplicationDbContext`) using Entity Framework Core.
 
+### 2.4 Data Backup
+*   **Azure Backup**: The Azure Web App and Azure SQL database are both backed up using the Azure Backup service.
+*   **Retention Period**: All backups are maintained with a retention period of 30 days.
+
 ## 3. System Architecture
 
 Below is a high-level system component diagram illustrating the data flow and principal components within the ChatApp.
