@@ -41,6 +41,7 @@ graph TD
         end
 
         Reports[Security & Linting Reports]
+        ActiveDirectory[Active Directory]
 
         subgraph AzureGov [Azure Government Cloud]
             AppServicePlan[Azure App Service Plan]
@@ -82,6 +83,10 @@ graph TD
     
     %% Communication
     WebApp -- Port 1433 --> SqlPE
+    
+    %% Authentication
+    Users -. Authenticates VPN against .-> ActiveDirectory
+    WebApp -. Authenticates against .-> ActiveDirectory
     
     %% Encryption
     AzureSQL -. Transparent Data Encryption .-> AzureSQL
