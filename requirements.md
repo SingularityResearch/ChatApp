@@ -44,7 +44,13 @@ This document outlines the features and requirements of the ChatApp application 
 *   **Azure Backup**: The Azure Web App and Azure SQL database are both backed up using the Azure Backup service.
 *   **Retention Period**: All backups are maintained with a retention period of 30 days.
 
-## 3. System Architecture
+## 3. Performance & Reliability
+
+### 3.1 Fault Tolerance and Scalability
+*   **Dynamic Scaling**: The Azure Web App and Azure SQL database can be dynamically scaled to meet varying user performance requirements.
+*   **Failover & Disaster Recovery**: Azure Web Apps and Azure SQL can enable failover to different Azure Government regions to ensure fault tolerance and disaster recovery.
+
+## 4. System Architecture
 
 Below is a high-level system component diagram illustrating the data flow and principal components within the ChatApp.
 
