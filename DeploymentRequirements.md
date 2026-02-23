@@ -52,7 +52,11 @@ graph TD
             SqlPE((Azure Private Endpoint<br>Internal IP))
         end
         
-        Users((Internal Users))
+        InternalVM[Azure Virtual Machine<br>Internal Web Browser]
+    end
+
+    subgraph ExternalNetwork [External Network]
+        Users((External Users))
     end
 
     %% Pipeline Flow
@@ -81,5 +85,6 @@ graph TD
     AzureSQL -. Backed up by .-> BackupSvc
     
     %% Data Traffic
-    Users -- HTTPS : 443 --> WebAppPE
+    Users -- Web VPN --> InternalVM
+    InternalVM -- HTTPS : 443 --> WebAppPE
 ```
