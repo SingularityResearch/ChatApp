@@ -26,32 +26,34 @@ Jenkins deploys the application to Azure Government with the following configura
 
 ```mermaid
 graph TD
-    subgraph Pipeline [DevSecOps Pipeline]
-        GitHub[GitHub Repository]
-        Jenkins[Jenkins CI/CD]
-        
-        subgraph SecurityScans [Security Scans]
-            SonarQube[SonarQube]
-            Coverity[Coverity]
-            BlackDuck[BlackDuck]
+    subgraph InternalNetwork [Internal Network]
+        subgraph Pipeline [DevSecOps Pipeline]
+            GitHub[GitHub Repository]
+            Jenkins[Jenkins CI/CD]
+            
+            subgraph SecurityScans [Security Scans]
+                SonarQube[SonarQube]
+                Coverity[Coverity]
+                BlackDuck[BlackDuck]
+            end
+            
+            Build[Compile .NET 10]
+        end
+
+        subgraph AzureGov [Azure Government Cloud]
+            AppServicePlan[Azure App Service Plan]
+            WebApp[Azure Web App]
+            WebAppPE((Azure Private Endpoint<br>Internal IP))
+            
+            AppInsights[Azure Application Insights]
+            BackupSvc[Azure Backup Service]
+            
+            AzureSQL[(Azure SQL)]
+            SqlPE((Azure Private Endpoint<br>Internal IP))
         end
         
-        Build[Compile .NET 10]
+        Users((Internal Users))
     end
-
-    subgraph AzureGov [Azure Government Cloud]
-        AppServicePlan[Azure App Service Plan]
-        WebApp[Azure Web App]
-        WebAppPE((Azure Private Endpoint<br>Internal IP))
-        
-        AppInsights[Azure Application Insights]
-        BackupSvc[Azure Backup Service]
-        
-        AzureSQL[(Azure SQL)]
-        SqlPE((Azure Private Endpoint<br>Internal IP))
-    end
-    
-    Users((Internal Users))
 
     %% Pipeline Flow
     GitHub -- Webhook Trigger --> Jenkins
