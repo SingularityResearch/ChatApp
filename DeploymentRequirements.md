@@ -77,7 +77,7 @@ graph TD
     
     %% Azure Infrastructure
     AppServicePlan --- WebApp
-    WebApp --- WebAppPE
+    WebApp -- HTTPS : 443 --> WebAppPE
     AzureSQL --- SqlPE
     
     %% Communication
@@ -92,7 +92,7 @@ graph TD
     AzureSQL -. Backed up by .-> BackupSvc
     
     %% Data Traffic
-    Users -- Web VPN --> InternalVM
+    Users -- Web VPN (HTTPS : 443) --> InternalVM
     InternalVM -- HTTPS : 443 --> WebAppPE
     InternalVM -- Views --> Reports
 ```
