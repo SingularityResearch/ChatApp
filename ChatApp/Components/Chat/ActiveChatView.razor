@@ -2,8 +2,8 @@
 
 <div
     class="chat-header p-2 border-bottom border-secondary bg-mica-alt d-flex justify-content-between align-items-center">
-    <strong>@Conversation.DisplayName</strong>
-    @if (Conversation.ConversationId != "global")
+    <strong>@Conversation.DisplayTitle</strong>
+    @if (Conversation.ConversationId != 0)
     {
         <button class="btn btn-sm btn-outline-secondary border-0" @onclick="OnToggleDetails" title="Conversation Details">
             <i class="bi bi-info-circle fs-5"></i>
@@ -63,5 +63,6 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
+        min-height: 0;
     }
 </style>

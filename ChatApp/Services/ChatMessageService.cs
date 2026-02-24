@@ -12,13 +12,33 @@ public interface IChatMessageService
     /// <summary>
     /// Saves a new chat message to the database.
     /// </summary>
+    /// <param name="conversationId">The ID of the SystemConversation this message belongs to.</param>
     /// <param name="senderId">The ID of the user sending the message.</param>
     /// <param name="senderName">The name of the user sending the message.</param>
     /// <param name="message">The text content of the message.</param>
-    /// <param name="recipientIds">An optional list of recipient user IDs.</param>
     /// <param name="attachmentUrl">An optional URL for a file attachment.</param>
     /// <returns>The ID of the newly saved message.</returns>
-    Task<int> SaveMessageAsync(string senderId, string senderName, string message, List<string>? recipientIds, string? attachmentUrl);
+    Task<int> SaveMessageAsync(int conversationId, string senderId, string senderName, string message, string? attachmentUrl);
+
+    /// <summary>
+    /// Gets or creates a SystemConversation involving the exact set of participants.
+    /// </summary>
+    Task<SystemConversation> GetOrCreateConversationAsync(List<string> participantIds);
+
+    /// <summary>
+    /// Gets the IDs of all active participants in a conversation.
+    /// </summary>
+    Task<List<string>> GetActiveParticipantIdsAsync(int conversationId);
+
+    /// <summary>
+    /// Marks a user as having left a conversation.
+    /// </summary>
+    Task<bool> LeaveConversationAsync(int conversationId, string userId);
+
+    /// <summary>
+    /// Updates the title of a specific conversation.
+    /// </summary>
+    Task<bool> UpdateConversationTitleAsync(int conversationId, string title);
 
     /// <summary>
     /// Edits an existing message's text content.
@@ -38,11 +58,11 @@ public interface IChatMessageService
     Task<bool> DeleteMessageAsync(int messageId, string currentUserId);
 
     /// <summary>
-    /// Retrieves the chat history visible to a specific user.
+    /// Retrieves the chat conversations visible to a specific user, along with their messages.
     /// </summary>
     /// <param name="currentUserId">The ID of the user requesting history.</param>
-    /// <returns>A list of messages the user is allowed to see.</returns>
-    Task<List<Data.ChatMessage>> GetMessageHistoryAsync(string currentUserId);
+    /// <returns>A list of conversations the user is a participant of.</returns>
+    Task<List<SystemConversation>> GetUserConversationsAsync(string currentUserId);
 
     /// <summary>
     /// Generates a report of user activity including message counts and last active times.
@@ -84,13 +104,14 @@ public class ChatMessageService(IServiceScopeFactory scopeFactory) : IChatMessag
 {
 
     /// <inheritdoc/>
-    public async Task<int> SaveMessageAsync(string senderId, string senderName, string message, List<string>? recipientIds, string? attachmentUrl)
+    public async Task<int> SaveMessageAsync(int conversationId, string senderId, string senderName, string message, string? attachmentUrl)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var msgEntity = new Data.ChatMessage
         {
+            SystemConversationId = conversationId,
             SenderId = senderId,
             SenderName = senderName,
             Message = message,
@@ -98,14 +119,102 @@ public class ChatMessageService(IServiceScopeFactory scopeFactory) : IChatMessag
             AttachmentUrl = attachmentUrl
         };
 
-        if (recipientIds != null && recipientIds.Count > 0)
-        {
-            msgEntity.Recipients = [.. recipientIds.Select(uid => new ChatRecipient { UserId = uid })];
-        }
-
         db.ChatMessages.Add(msgEntity);
         await db.SaveChangesAsync();
         return msgEntity.Id;
+    }
+
+    /// <inheritdoc/>
+    public async Task<SystemConversation> GetOrCreateConversationAsync(List<string> participantIds)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        // Load all conversations that contain the exact set of participants
+        var conversations = await db.SystemConversations
+            .Include(c => c.Participants)
+            .Where(c => c.Participants.Count == participantIds.Count)
+            .ToListAsync();
+
+        var existing = conversations.FirstOrDefault(c =>
+            c.Participants.All(p => participantIds.Contains(p.UserId)));
+
+        if (existing != null)
+        {
+            // Un-leave any participants if they are coming back
+            var leftParticipants = existing.Participants.Where(p => p.HasLeft);
+            foreach (var p in leftParticipants)
+            {
+                p.HasLeft = false;
+                p.LeftAt = null;
+            }
+            if (leftParticipants.Any())
+            {
+                await db.SaveChangesAsync();
+            }
+            return existing;
+        }
+
+        var newConv = new SystemConversation
+        {
+            IsGroupChat = participantIds.Count > 2,
+            Participants = participantIds.Select(uid => new SystemConversationParticipant { UserId = uid }).ToList()
+        };
+
+        db.SystemConversations.Add(newConv);
+        await db.SaveChangesAsync();
+        return newConv;
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<string>> GetActiveParticipantIdsAsync(int conversationId)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        return await db.SystemConversationParticipants
+            .Where(p => p.SystemConversationId == conversationId && !p.HasLeft)
+            .Select(p => p.UserId)
+            .ToListAsync();
+    }
+
+    public async Task<bool> LeaveConversationAsync(int conversationId, string userId)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var participant = await db.SystemConversationParticipants
+            .FirstOrDefaultAsync(p => p.SystemConversationId == conversationId && p.UserId == userId);
+
+        if (participant != null)
+        {
+            if (!participant.HasLeft)
+            {
+                participant.HasLeft = true;
+                participant.LeftAt = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> UpdateConversationTitleAsync(int conversationId, string title)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var conversation = await db.SystemConversations.FindAsync(conversationId);
+        if (conversation != null)
+        {
+            conversation.Title = title;
+            await db.SaveChangesAsync();
+            return true;
+        }
+
+        return false;
     }
 
     /// <inheritdoc/>
@@ -189,19 +298,19 @@ public class ChatMessageService(IServiceScopeFactory scopeFactory) : IChatMessag
     }
 
     /// <inheritdoc/>
-    public async Task<List<Data.ChatMessage>> GetMessageHistoryAsync(string currentUserId)
+    public async Task<List<SystemConversation>> GetUserConversationsAsync(string currentUserId)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        var history = await db.ChatMessages
-            .Include(m => m.Recipients)
-            .Include(m => m.Reactions)
-            .Where(m => !m.Recipients.Any() || m.SenderId == currentUserId || m.Recipients.Any(r => r.UserId == currentUserId))
-            .OrderBy(m => m.Timestamp)
+        var conversations = await db.SystemConversations
+            .Include(c => c.Participants)
+            .Include(c => c.Messages)
+                .ThenInclude(m => m.Reactions)
+            .Where(c => c.Participants.Any(p => p.UserId == currentUserId && !p.HasLeft))
             .ToListAsync();
 
-        return history;
+        return conversations;
     }
 
     /// <inheritdoc/>

@@ -30,41 +30,41 @@
     <div class="chat-main-area">
         @if (IsNewChatMode)
         {
-            <NewChatView AllUsers="AllUsers" OnlineUsers="OnlineUsers" SelectedUsers="NewChatSelectedUsers"
-                IsAddingParticipants="IsAddingParticipants" IsConnected="IsConnected" OnToggleUser="OnToggleNewChatUser"
-                OnStart="OnStartChat" OnFileUpload="OnFileUpload" />
+                <NewChatView AllUsers="AllUsers" OnlineUsers="OnlineUsers" SelectedUsers="NewChatSelectedUsers"
+                    IsAddingParticipants="IsAddingParticipants" IsConnected="IsConnected" OnToggleUser="OnToggleNewChatUser"
+                    OnStart="OnStartChat" OnFileUpload="OnFileUpload" />
         }
         else if (SelectedConversation != null)
         {
-            <ActiveChatView @ref="activeChatView" Conversation="SelectedConversation" IsConnected="IsConnected"
-                OnToggleDetails="ToggleDetails" OnSend="HandleSend" OnFileUpload="OnFileUpload" OnStartEdit="StartEdit"
-                OnDelete="DeleteMessage" OnSaveEdit="SaveEdit" OnCancelEdit="CancelEdit" OnReply="HandleReply"
-                OnToggleReaction="HandleToggleReaction" />
+                <ActiveChatView @ref="activeChatView" Conversation="SelectedConversation" IsConnected="IsConnected"
+                    OnToggleDetails="ToggleDetails" OnSend="HandleSend" OnFileUpload="OnFileUpload" OnStartEdit="StartEdit"
+                    OnDelete="DeleteMessage" OnSaveEdit="SaveEdit" OnCancelEdit="CancelEdit" OnReply="HandleReply"
+                    OnToggleReaction="HandleToggleReaction" />
 
-            <ChatDetailsModal IsOpen="IsDetailsOpen" Conversation="SelectedConversation" AllUsers="AllUsers"
-                OnlineUsers="OnlineUsers" CurrentUserId="@currentUserId" OnClose="ToggleDetails"
-                OnAddPeople="AddUserToCurrentChat" />
+                <ChatDetailsModal IsOpen="IsDetailsOpen" Conversation="SelectedConversation" AllUsers="AllUsers"
+                    OnlineUsers="OnlineUsers" CurrentUserId="@currentUserId" OnClose="ToggleDetails"
+                    OnAddPeople="AddUserToCurrentChat" OnLeaveChat="HandleLeaveChat" OnRenameChat="HandleRenameChat" />
 
-            <DeleteConfirmationModal IsOpen="IsDeleteConfirmOpen" Message="MessageToDelete" OnConfirm="ConfirmDelete"
-                OnCancel="CancelDelete" />
+                <DeleteConfirmationModal IsOpen="IsDeleteConfirmOpen" Message="MessageToDelete" OnConfirm="ConfirmDelete"
+                    OnCancel="CancelDelete" />
         }
         else
         {
-            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
-                <p class="fs-4">Select a conversation or start a new one.</p>
-            </div>
+                <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                    <p class="fs-4">Select a conversation or start a new one.</p>
+                </div>
         }
     </div>
 </div>
 
 @if (IsNotificationVisible)
 {
-    <div class="toast-notification">
-        <div class="d-flex align-items-center justify-content-between">
-            <span>@NotificationMessage</span>
-            <button class="btn-close btn-close-white ms-3" @onclick="CloseNotification"></button>
+        <div class="toast-notification">
+            <div class="d-flex align-items-center justify-content-between">
+                <span>@NotificationMessage</span>
+                <button class="btn-close btn-close-white ms-3" @onclick="CloseNotification"></button>
+            </div>
         </div>
-    </div>
 }
 
 <style>
@@ -108,6 +108,8 @@
         display: flex;
         flex-direction: column;
         background-color: var(--mica-bg);
+        min-width: 0;
+        min-height: 0;
     }
 
     /* Global Status Dot (Used by multiple components) */
@@ -255,12 +257,13 @@
         .WithAutomaticReconnect()
         .Build();
 
-        _hubConnection.On<string, string, string, DateTime, string?, bool, List<string>?, int>("ReceiveMessage",
-        HandleMessageReceived);
+        _hubConnection.On<int, string, string, string, DateTime, string?, List<string>?, int>("ReceiveMessage", HandleMessageReceived);
         _hubConnection.On<int, string>("MessageEdited", HandleMessageEdited);
         _hubConnection.On<int>("MessageDeleted", HandleMessageDeleted);
         _hubConnection.On<int, string, string, string>("ReactionAdded", HandleReactionAdded);
         _hubConnection.On<int, string, string>("ReactionRemoved", HandleReactionRemoved);
+        _hubConnection.On<int, string>("UserLeftConversation", HandleUserLeftConversation);
+        _hubConnection.On<int, string>("ConversationTitleUpdated", HandleConversationTitleUpdated);
 
         await _hubConnection.StartAsync();
     }
@@ -274,7 +277,7 @@
             await _hubConnection.DisposeAsync();
         }
 
-        if (currentUserId != null) 
+        if (currentUserId != null)
         {
             ChatState.SetUserOffline(currentUserId);
             BannerState.ClearActiveRoles(currentUserId);
@@ -326,6 +329,60 @@
         });
     }
 
+    private void HandleUserLeftConversation(int conversationId, string userId)
+    {
+        InvokeAsync(() =>
+        {
+            var conv = Conversations.FirstOrDefault(c => c.ConversationId == conversationId);
+            if (conv != null)
+            {
+                conv.ParticipantIds.Remove(userId);
+                conv.DisplayName = GenerateDisplayNameFromMap(conv.ParticipantIds.ToHashSet(), AllUsers);
+                
+                if (string.Equals(userId, currentUserId, StringComparison.OrdinalIgnoreCase))
+                {
+                    Conversations.Remove(conv);
+                    if (SelectedConversation?.ConversationId == conversationId)
+                    {
+                        SelectedConversation = null;
+                        UpdateBannerForCurrentChat();
+                    }
+                }
+                
+                Conversations = Conversations.ToList(); // Force Blazor to detect array change
+                StateHasChanged();
+            }
+        });
+    }
+
+    private void HandleConversationTitleUpdated(int conversationId, string newTitle)
+    {
+        Console.WriteLine($"[Chat.razor] HandleConversationTitleUpdated called. ID: {conversationId}, NewTitle: {newTitle}");
+        InvokeAsync(() =>
+        {
+            var conv = Conversations.FirstOrDefault(c => c.ConversationId == conversationId);
+            if (conv != null)
+            {
+                Console.WriteLine($"[Chat.razor] Found conversation. Updating title and calling ToList.");
+                conv.Title = newTitle;
+                Conversations = Conversations.ToList(); // Force Blazor to detect array change
+                StateHasChanged();
+            }
+            else
+            {
+                Console.WriteLine($"[Chat.razor] Conversation {conversationId} NOT FOUND in current Conversations list! Count: {Conversations.Count}");
+            }
+        });
+    }
+
+    private async Task HandleRenameChat(string newTitle)
+    {
+        if (_hubConnection != null && SelectedConversation != null && !string.IsNullOrWhiteSpace(newTitle))
+        {
+            await _hubConnection.SendAsync("UpdateConversationTitle", SelectedConversation.ConversationId, newTitle);
+        }
+    }
+
     private void HandleReactionAdded(int messageId, string userId, string userName, string emoji)
     {
         InvokeAsync(() =>
@@ -373,14 +430,15 @@
         AllUsers = visibleUsersList.ToDictionary(u => u.Id, u => u);
 
         // Fetch history using the new Service method
-        var history = await ChatMessageService.GetMessageHistoryAsync(currentUserId);
+        var history = await ChatMessageService.GetUserConversationsAsync(currentUserId);
 
-        // Fetch missing usernames for senders/reactors not in current user's visible list (like historical users/groups)
-        var missingUserIds = history.Select(h => h.SenderId)
-        .Concat(history.SelectMany(h => h.Reactions).Select(r => r.UserId))
-        .Where(id => id != null && id != currentUserId && !AllUsers.ContainsKey(id))
-        .Distinct()
-        .ToList();
+        // Fetch missing usernames for senders/reactors
+        var missingUserIds = history.SelectMany(c => c.Participants).Select(p => p.UserId)
+            .Concat(history.SelectMany(c => c.Messages).SelectMany(m => m.Reactions).Select(r => r.UserId))
+            .Concat(history.SelectMany(c => c.Messages).Select(m => m.SenderId))
+            .Where(id => id != null && id != currentUserId && !AllUsers.ContainsKey(id))
+            .Distinct()
+            .ToList();
 
         var extraUsersNames = new Dictionary<string, string>();
         if (currentUserId != null && currentUserName != null)
@@ -396,56 +454,38 @@
         }
 
         Conversations.Clear();
+        Console.WriteLine($"[Chat.razor] LoadData: Fetched {history.Count} conversations from DB.");
 
         foreach (var h in history)
         {
-            var participants = h.Recipients.Select(r => r.UserId).ToHashSet();
-            participants.Add(h.SenderId);
+            var activeParticipants = h.Participants.Where(p => !p.HasLeft).Select(p => p.UserId).ToHashSet();
 
-            string convKey;
-            // If somehow a message with no recipients exists (old data), skip it
-            if (!h.Recipients.Any()) continue;
-            // If I am in a conversation with someone I can no longer see (removed from role), should I see the history?
-            // Probably yes, history is history. But new messages?
-            // For "LoadData", let's keep history if it exists, BUT
-            // We need to ensure we don't crash if user map misses them.
-            // AllUsers only has visible users.
-
-            convKey = GetConversationKey(participants);
-
-            var conversation = Conversations.FirstOrDefault(c => c.ConversationId == convKey);
-            if (conversation == null)
+            var conversation = new ConversationViewModel
             {
-                conversation = new ConversationViewModel
-                    {
-                        ConversationId = convKey,
-                        ParticipantIds = participants.ToList(),
-                        DisplayName = GenerateDisplayNameFromMap(participants, AllUsers)
-                    };
-                Conversations.Add(conversation);
-            }
+                ConversationId = h.Id,
+                Title = h.Title,
+                ParticipantIds = activeParticipants.ToList(),
+                DisplayName = GenerateDisplayNameFromMap(activeParticipants, AllUsers)
+            };
 
-            conversation.Messages.Add(new ChatMessage
+            foreach (var m in h.Messages)
+            {
+                conversation.Messages.Add(new ChatMessage
                 {
-                    Id = h.Id,
-                    User = AllUsers.TryGetValue(h.SenderId, out var u) ? u.UserName : (extraUsersNames.TryGetValue(h.SenderId, out var
-                euName) ? euName : "Unknown User"),
-                    Message = h.Message,
-                    Timestamp = h.Timestamp,
-                    AttachmentUrl = h.AttachmentUrl,
-                    IsMine = h.SenderId == currentUserId,
-                    SenderId = h.SenderId,
-                    Reactions = h.Reactions.Select(r =>
+                    Id = m.Id,
+                    User = AllUsers.TryGetValue(m.SenderId, out var u) ? u.UserName : (extraUsersNames.TryGetValue(m.SenderId, out var euName) ? euName : "Unknown User"),
+                    Message = m.Message,
+                    Timestamp = m.Timestamp,
+                    AttachmentUrl = m.AttachmentUrl,
+                    IsMine = m.SenderId == currentUserId,
+                    SenderId = m.SenderId,
+                    Reactions = m.Reactions.Select(r =>
                     {
                         string reactionUserName = "User";
                         if (AllUsers.TryGetValue(r.UserId, out var ru))
-                        {
                             reactionUserName = ru.UserName;
-                        }
                         else if (extraUsersNames.TryGetValue(r.UserId, out var euReacName))
-                        {
                             reactionUserName = euReacName;
-                        }
                         return new MessageReactionDto
                         {
                             Emoji = r.Emoji,
@@ -454,6 +494,8 @@
                         };
                     }).ToList()
                 });
+            }
+            Conversations.Add(conversation);
         }
 
         if (SelectedConversation == null)
@@ -464,6 +506,7 @@
         if (SelectedConversation != null)
         {
             _shouldScrollToBottom = true;
+            UpdateBannerForCurrentChat();
         }
     }
 
@@ -495,38 +538,23 @@
         }
     }
 
-    private void HandleMessageReceived(string senderId, string senderName, string message, DateTime timestamp, string?
-    attachmentUrl, bool _, List<string>? recipientIds, int messageId)
+    private void HandleMessageReceived(int conversationId, string senderId, string senderName, string message, DateTime timestamp, string? attachmentUrl, List<string>? participantIds, int messageId)
     {
         if (currentUserId == null) return;
-
-        // Ignore Messages with no explicit recipients (Global)
-        if (recipientIds == null || !recipientIds.Any()) return;
 
         // Restriction: Ignore messages from non-visible users (unless it's me)
         if (senderId != currentUserId && !AllUsers.ContainsKey(senderId)) return;
 
-        var participants = new HashSet<string>();
-        if (recipientIds != null && recipientIds.Any())
-        {
-            if (senderId != currentUserId && !recipientIds.Contains(currentUserId))
-            {
-                return;
-            }
-
-            participants = recipientIds.ToHashSet();
-            participants.Add(senderId);
-        }
-
-        string convKey = GetConversationKey(participants);
-
-        var conversation = Conversations.FirstOrDefault(c => c.ConversationId == convKey);
+        var conversation = Conversations.FirstOrDefault(c => c.ConversationId == conversationId);
 
         if (conversation == null)
         {
+            var participants = participantIds?.ToHashSet() ?? new HashSet<string>();
+            if (!participants.Contains(senderId)) participants.Add(senderId);
+
             conversation = new ConversationViewModel
                 {
-                    ConversationId = convKey,
+                    ConversationId = conversationId,
                     ParticipantIds = participants.ToList(),
                     DisplayName = GenerateDisplayNameFromMap(participants, AllUsers)
                 };
@@ -554,7 +582,7 @@
 
             if (senderId != currentUserId)
             {
-                bool isLookingAtIt = SelectedConversation != null && SelectedConversation.ConversationId == convKey;
+                bool isLookingAtIt = SelectedConversation != null && SelectedConversation.ConversationId == conversationId;
 
                 if (!isLookingAtIt)
                 {
@@ -593,12 +621,12 @@
         {
             InvokeAsync(() =>
     {
-    if (IsNotificationVisible && CurrentNotificationId == notifId)
-    {
-        IsNotificationVisible = false;
-        StateHasChanged();
-    }
-            });
+        if (IsNotificationVisible && CurrentNotificationId == notifId)
+        {
+            IsNotificationVisible = false;
+            StateHasChanged();
+        }
+    });
         });
     }
 
@@ -620,34 +648,44 @@
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chatScrollView");
     }
 
-    private void UpdateBannerForCurrentChat()
+    private void UpdateBannerForParticipants(IEnumerable<string>? participantIds)
     {
-        if (SelectedConversation == null || currentUserId == null) 
+        if (participantIds == null || currentUserId == null)
         {
             if (currentUserId != null) BannerState.ClearActiveRoles(currentUserId);
+            return;
+        }
+
+        var otherParticipants = participantIds.Where(id => id != currentUserId).ToList();
+
+        if (!otherParticipants.Any())
+        {
+            BannerState.ClearActiveRoles(currentUserId);
             return;
         }
 
         // We'll intersect roles with everyone in the chat
         var commonRoles = new HashSet<string>(currentUserRoles);
 
-        foreach (var pId in SelectedConversation.ParticipantIds.Where(id => id != currentUserId))
+        foreach (var pId in otherParticipants)
         {
             if (AllUsers.TryGetValue(pId, out var participant))
             {
                 commonRoles.IntersectWith(participant.Roles);
             }
+            else
+            {
+                commonRoles.Clear();
+                break;
+            }
         }
 
-        if (commonRoles.Any())
-        {
-            BannerState.SetActiveRoles(currentUserId, commonRoles.ToList());
-        }
-        else
-        {
-            // If somehow they have no common roles (shouldn't happen under strictly shared role isolation), clear or keep user default
-            BannerState.ClearActiveRoles(currentUserId);
-        }
+        BannerState.SetActiveRoles(currentUserId, commonRoles.ToList());
+    }
+
+    private void UpdateBannerForCurrentChat()
+    {
+        UpdateBannerForParticipants(SelectedConversation?.ParticipantIds);
     }
 
     private void OnStartNewChat()
@@ -678,12 +716,38 @@
             NewChatSelectedUsers.Add(p);
         }
         SelectedConversation = null;
+        UpdateBannerForParticipants(NewChatSelectedUsers);
+    }
+
+    private async Task HandleLeaveChat(int conversationId)
+    {
+        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            // Optimistically update the UI to instantly remove the conversation
+            var conv = Conversations.FirstOrDefault(c => c.ConversationId == conversationId);
+            if (conv != null)
+            {
+                Conversations.Remove(conv);
+                if (SelectedConversation?.ConversationId == conversationId)
+                {
+                    SelectedConversation = null;
+                    UpdateBannerForCurrentChat();
+                }
+                Conversations = Conversations.ToList(); // Force Blazor to detect array change
+                StateHasChanged();
+            }
+
+            await _hubConnection.SendAsync("LeaveConversation", conversationId);
+            IsDetailsOpen = false;
+        }
     }
 
     private void OnToggleNewChatUser(string userId)
     {
         if (NewChatSelectedUsers.Contains(userId)) NewChatSelectedUsers.Remove(userId);
         else NewChatSelectedUsers.Add(userId);
+
+        UpdateBannerForParticipants(NewChatSelectedUsers);
     }
 
     // Updated Send logic to accept message string
@@ -701,45 +765,30 @@
     {
         if (!string.IsNullOrWhiteSpace(message) && currentUserId != null)
         {
-            List<string> recipients = new();
-            HashSet<string> participants = new();
+            List<string>? participants = null;
+            int? conversationId = null;
 
             if (isNewChat)
             {
-                recipients = NewChatSelectedUsers.ToList();
-                participants = NewChatSelectedUsers.ToHashSet();
-                participants.Add(currentUserId);
+                participants = NewChatSelectedUsers.ToList();
             }
             else if (SelectedConversation != null)
             {
-                recipients = SelectedConversation.ParticipantIds.Where(id => id != currentUserId).ToList();
+                conversationId = SelectedConversation.ConversationId;
             }
             else return;
 
             if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
             {
-                await _hubConnection.SendAsync("SendMessage", message, recipients, null);
-            }
+                var returnedConvId = await _hubConnection.InvokeAsync<int>("SendMessage", conversationId, participants, message, null);
 
-            if (isNewChat)
-            {
-                // Force Select the conversation we just started
-                string convKey = GetConversationKey(participants);
-                var conversation = Conversations.FirstOrDefault(c => c.ConversationId == convKey);
-
-                if (conversation == null)
+                if (isNewChat)
                 {
-                    conversation = new ConversationViewModel
-                        {
-                            ConversationId = convKey,
-                            ParticipantIds = participants.ToList(),
-                            DisplayName = GenerateDisplayNameFromMap(participants, AllUsers)
-                        };
-                    Conversations.Add(conversation);
+                    await Task.Delay(100);
+                    SelectedConversation = Conversations.FirstOrDefault(c => c.ConversationId == returnedConvId);
+                    IsNewChatMode = false;
+                    UpdateBannerForCurrentChat();
                 }
-
-                SelectedConversation = conversation;
-                IsNewChatMode = false;
             }
 
             // Scroll to bottom immediately upon sending
@@ -769,22 +818,29 @@
             await file.OpenReadStream(10 * 1024 * 1024).CopyToAsync(fs);
             var attachmentUrl = $"/uploads/{fileName}";
 
-            List<string> recipients = new();
+            List<string>? participants = null;
+            int? conversationId = null;
+
             if (SelectedConversation != null)
             {
-                recipients = SelectedConversation.ParticipantIds.Where(id => id != currentUserId).ToList();
+                conversationId = SelectedConversation.ConversationId;
             }
-            // Note: If uploading in New Chat, we need specific logic? Assuming works same as send.
             else if (IsNewChatMode)
             {
-                recipients = NewChatSelectedUsers.ToList();
+                participants = NewChatSelectedUsers.ToList();
             }
 
-            if (recipients.Count > 0)
+            if (participants != null || conversationId != null)
             {
                 if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
                 {
-                    await _hubConnection.SendAsync("SendMessage", $"Sent attachment: {file.Name}", recipients, attachmentUrl);
+                    var returnedConvId = await _hubConnection.InvokeAsync<int>("SendMessage", conversationId, participants, $"Sent attachment: {file.Name}", attachmentUrl);
+                    if (IsNewChatMode)
+                    {
+                        await Task.Delay(100);
+                        SelectedConversation = Conversations.FirstOrDefault(c => c.ConversationId == returnedConvId);
+                        UpdateBannerForCurrentChat();
+                    }
                 }
             }
 

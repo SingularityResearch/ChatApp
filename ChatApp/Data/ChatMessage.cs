@@ -21,6 +21,11 @@ public class ChatMessage
 
     public string? AttachmentUrl { get; set; }
 
+    // Nullable for backwards compatibility with existing messages
+    public int? SystemConversationId { get; set; }
+    [ForeignKey("SystemConversationId")]
+    public SystemConversation? Conversation { get; set; }
+
     // Navigation property for recipients (if private/group)
     // If empty, it's a broadcast to all
     public List<ChatRecipient> Recipients { get; set; } = new();

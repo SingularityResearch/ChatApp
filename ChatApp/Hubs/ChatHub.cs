@@ -85,38 +85,123 @@ public class ChatHub(ChatStateService chatStateService, IChatMessageService chat
     }
 
     /// <summary>
-    /// Sends a message to a list of specified recipients.
+    /// Sends a message to a specific conversation or newly specified participants.
     /// Saves the message to the database and broadcasts to connected clients.
     /// </summary>
-    /// <param name="message">The text content of the message.</param>
-    /// <param name="recipientIds">A list of user IDs to receive the message.</param>
-    /// <param name="attachmentUrl">An optional URL to an attached file.</param>
-    /// <returns>A task that represents the asynchronous send operation.</returns>
-    public async Task SendMessage(string message, List<string> recipientIds, string? attachmentUrl = null)
+    public async Task<int> SendMessage(int? conversationId, List<string>? participantIds, string message, string? attachmentUrl = null)
     {
         var senderId = Context.UserIdentifier;
-        if (senderId == null) return;
-
-        // Cannot send a message with no recipients (Global chat is disabled)
-        if (recipientIds == null || recipientIds.Count == 0) return;
+        if (senderId == null) return 0;
 
         var timestamp = DateTime.Now;
-
-        // Prevent Sender Spoofing
         var senderName = Context.User?.Identity?.Name ?? "Unknown";
 
-        // Save to DB using the new service
-        int messageId = await _chatMessageService.SaveMessageAsync(senderId, senderName, message, recipientIds, attachmentUrl);
+        if (conversationId.HasValue && conversationId.Value > 0)
+        {
+            var activeIds = await _chatMessageService.GetActiveParticipantIdsAsync(conversationId.Value);
+            participantIds = activeIds.Where(id => id != senderId).ToList();
+        }
+        else if (participantIds != null && participantIds.Any())
+        {
+            var allParticipants = participantIds.ToList();
+            if (!allParticipants.Contains(senderId)) allParticipants.Add(senderId);
+
+            var conversation = await _chatMessageService.GetOrCreateConversationAsync(allParticipants);
+            conversationId = conversation.Id;
+            participantIds = allParticipants.Where(id => id != senderId).ToList();
+        }
+        else
+        {
+            return 0;
+        }
+
+        int messageId = await _chatMessageService.SaveMessageAsync(conversationId.Value, senderId, senderName, message, attachmentUrl);
 
         // Send to sender 
-        await Clients.Caller.SendAsync("ReceiveMessage", senderId, senderName, message, timestamp, attachmentUrl, true, recipientIds, messageId);
+        await Clients.Caller.SendAsync("ReceiveMessage", conversationId.Value, senderId, senderName, message, timestamp, attachmentUrl, participantIds, messageId);
 
-        // Send to recipients
-        foreach (var recipientId in recipientIds)
+        // Send to active recipients
+        if (participantIds != null)
         {
-            if (_userConnections.TryGetValue(recipientId, out _))
+            foreach (var recipientId in participantIds)
             {
-                await Clients.Users(recipientId).SendAsync("ReceiveMessage", senderId, senderName, message, timestamp, attachmentUrl, true, recipientIds, messageId);
+                if (_userConnections.TryGetValue(recipientId, out var connIds))
+                {
+                    foreach (var connId in connIds)
+                    {
+                        await Clients.Client(connId).SendAsync("ReceiveMessage", conversationId.Value, senderId, senderName, message, timestamp, attachmentUrl, participantIds, messageId);
+                    }
+                }
+            }
+        }
+
+        return conversationId.Value;
+    }
+
+    /// <summary>
+    /// Leaves an existing explicit conversation.
+    /// </summary>
+    public async Task LeaveConversation(int conversationId)
+    {
+        var currentUserId = Context.UserIdentifier;
+        if (currentUserId == null) return;
+
+        bool success = await _chatMessageService.LeaveConversationAsync(conversationId, currentUserId);
+        if (success)
+        {
+            // Update the local UI of the person who left
+            await Clients.Caller.SendAsync("UserLeftConversation", conversationId, currentUserId);
+
+            var activeIds = await _chatMessageService.GetActiveParticipantIdsAsync(conversationId);
+            if (activeIds.Any())
+            {
+                var others = activeIds.Where(id => id != currentUserId).ToList();
+                foreach (var other in others)
+                {
+                    if (_userConnections.TryGetValue(other, out var connIds))
+                    {
+                        foreach (var connId in connIds)
+                        {
+                            await Clients.Client(connId).SendAsync("UserLeftConversation", conversationId, currentUserId);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Updates the title of a specific conversation and broadcasts the change.
+    /// </summary>
+    /// <param name="conversationId">The ID of the conversation to update.</param>
+    /// <param name="newTitle">The new title for the conversation.</param>
+    /// <returns>A task that represents the asynchronous update operation.</returns>
+    public async Task UpdateConversationTitle(int conversationId, string newTitle)
+    {
+        var currentUserId = Context.UserIdentifier;
+        if (currentUserId == null) return;
+
+        bool success = await _chatMessageService.UpdateConversationTitleAsync(conversationId, newTitle);
+
+        if (success)
+        {
+            // First send to the caller
+            await Clients.Caller.SendAsync("ConversationTitleUpdated", conversationId, newTitle);
+
+            var activeIds = await _chatMessageService.GetActiveParticipantIdsAsync(conversationId);
+            if (activeIds.Any())
+            {
+                var others = activeIds.Where(id => id != currentUserId).ToList();
+                foreach (var other in others)
+                {
+                    if (_userConnections.TryGetValue(other, out var connIds))
+                    {
+                        foreach (var connId in connIds)
+                        {
+                            await Clients.Client(connId).SendAsync("ConversationTitleUpdated", conversationId, newTitle);
+                        }
+                    }
+                }
             }
         }
     }

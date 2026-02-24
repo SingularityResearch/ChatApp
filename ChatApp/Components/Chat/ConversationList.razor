@@ -7,7 +7,7 @@
     </div>
 
     <ul class="list-group list-group-flush">
-        @foreach (var conv in Conversations.OrderByDescending(c => c.ConversationId == "global").ThenByDescending(c =>
+        @foreach (var conv in Conversations.OrderByDescending(c => c.ConversationId == 0).ThenByDescending(c =>
         c.LastActivity))
         {
             var isSelected = SelectedConversation == conv;
@@ -16,7 +16,7 @@
                 <div class="d-flex justify-content-between w-100">
                     <div class="d-flex flex-column text-truncate">
                         <span class="fw-bold text-truncate">
-                            @if (!conv.IsGroup && conv.ConversationId != "global")
+                            @if (!conv.IsGroup && conv.ConversationId != 0)
                             {
                                 var otherId = conv.ParticipantIds.FirstOrDefault(id => id != CurrentUserId);
                                 if (otherId != null)
@@ -26,9 +26,9 @@
                                         title="@(isOnline ? "Online" : "Offline")"></span>
                                 }
                             }
-                            @conv.DisplayName
+                            @conv.DisplayTitle
                         </span>
-                        @if (!conv.IsGroup && conv.ConversationId != "global")
+                        @if (!conv.IsGroup && conv.ConversationId != 0)
                         {
                             var otherId = conv.ParticipantIds.FirstOrDefault(id => id != CurrentUserId);
                             if (otherId != null && AllUsers.TryGetValue(otherId, out var u) && u.Roles.Any())

@@ -19,9 +19,11 @@ public class UserDto
 /// </summary>
 public class ConversationViewModel
 {
-    public string ConversationId { get; set; } = string.Empty; // Unique Key based on sorted participants
+    public int ConversationId { get; set; }
+    public string? Title { get; set; }
     public List<string> ParticipantIds { get; set; } = new();
-    public string DisplayName { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty; // the auto-generated "{Name} + 1 others"
+    public string DisplayTitle => !string.IsNullOrWhiteSpace(Title) ? Title : DisplayName;
     public List<ChatMessage> Messages { get; set; } = new();
     public DateTime LastActivity => Messages.LastOrDefault()?.Timestamp ?? DateTime.MinValue;
     public bool IsGroup => ParticipantIds.Count > 2; // Me + 2 others = 3 total

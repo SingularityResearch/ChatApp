@@ -10,14 +10,14 @@
 
 <PageTitle>Manage Program Banners</PageTitle>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 h-100 overflow-auto">
     <div class="row mb-4">
         <div class="col-12 d-flex justify-content-between align-items-center">
             <div>
-                <a href="admin" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to Admin</a>
+                <h3 class="text-white m-0">Manage Program Banners</h3>
+                <p class="summary-text text-muted mb-0">Customize banner appearance for each program role.</p>
             </div>
-            <h2 class="text-white m-0">Manage Program Banners</h2>
-            <div style="width: 120px;"></div> <!-- Spacer for centering -->
+            <a href="admin" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to Admin</a>
         </div>
     </div>
 
@@ -74,7 +74,7 @@
                             </div>
                         </div>
                         <div class="card-footer bg-transparent border-secondary text-end">
-                            <button class="btn btn-primary" @onclick="() => SaveBannerAsync(banner)">
+                            <button class="btn btn-primary" @onclick="() => PromptSaveBanner(banner)">
                                 <i class="bi bi-save me-2"></i>Save Banner
                             </button>
                         </div>
@@ -95,17 +95,84 @@
     }
 </div>
 
+@if (showConfirmModal && bannerToSave != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Confirm Save</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CancelSave"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to save the banner configuration for <strong>@bannerToSave.RoleName</strong>?</p>
+                    
+                    <div class="row g-3 my-3">
+                        <div class="col-12">
+                            <h6 class="text-muted small mb-1">Current Banner:</h6>
+                            @if (originalBannerToSave != null && originalBannerToSave.IsActive)
+                            {
+                                <div class="rounded p-2 text-center"
+                                    style="background-color: @originalBannerToSave.BackgroundColor; color: @originalBannerToSave.TextColor; border: 1px solid rgba(255,255,255,0.1);">
+                                    @(string.IsNullOrWhiteSpace(originalBannerToSave.BannerText) ? "Banner Text Preview" : originalBannerToSave.BannerText)
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="rounded p-2 text-center text-muted bg-dark border border-secondary" style="border-style: dashed !important;">
+                                    <em>Inactive / No Banner</em>
+                                </div>
+                            }
+                        </div>
+                        
+                        <div class="col-12 text-center">
+                            <i class="bi bi-arrow-down fs-4 text-muted"></i>
+                        </div>
+
+                        <div class="col-12">
+                            <h6 class="text-primary small mb-1">New Banner:</h6>
+                            @if (bannerToSave.IsActive)
+                            {
+                                <div class="rounded p-2 text-center"
+                                    style="background-color: @bannerToSave.BackgroundColor; color: @bannerToSave.TextColor; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 0 10px rgba(96, 205, 255, 0.2);">
+                                    @(string.IsNullOrWhiteSpace(bannerToSave.BannerText) ? "Banner Text Preview" : bannerToSave.BannerText)
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="rounded p-2 text-center text-muted bg-dark border border-secondary" style="border-style: dashed !important;">
+                                    <em>Inactive / No Banner</em>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <p class="text-muted small mb-0">This will immediately update the banner for all users with this role when they next load the application.</p>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelSave">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="ConfirmSaveAsync">Yes, Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private bool isLoading = true;
     private List<ProgramBanner> banners = new();
     private List<IdentityRole> availableRoles = new();
     private Dictionary<string, ProgramBanner> roleBanners = new();
+    
+    private bool showConfirmModal = false;
+    private ProgramBanner? bannerToSave = null;
+    private ProgramBanner? originalBannerToSave = null;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            availableRoles = RoleManager.Roles.ToList();
+            availableRoles = RoleManager.Roles.OrderBy(r => r.Name).ToList();
             banners = await BannerService.GetAllBannersAsync();
 
             foreach (var role in availableRoles)
@@ -139,9 +206,51 @@
         return roleBanners.TryGetValue(roleName, out var banner) ? banner : new ProgramBanner { RoleName = roleName };
     }
 
-    private async Task SaveBannerAsync(ProgramBanner banner)
+    private async Task PromptSaveBanner(ProgramBanner banner)
     {
-        await BannerService.UpdateBannerAsync(banner);
-        // Toast or notification could be added here
+        bannerToSave = banner;
+        // Fetch fresh from DB to show 'Before' state, since in-memory banners list is mutated by the UI
+        var currentDbBanners = await BannerService.GetAllBannersAsync();
+        var existingTokens = currentDbBanners.FirstOrDefault(b => b.RoleName == banner.RoleName);
+        originalBannerToSave = existingTokens != null ? new ProgramBanner 
+        {
+            Id = existingTokens.Id,
+            RoleName = existingTokens.RoleName,
+            BannerText = existingTokens.BannerText,
+            BackgroundColor = existingTokens.BackgroundColor,
+            TextColor = existingTokens.TextColor,
+            IsActive = existingTokens.IsActive
+        } : new ProgramBanner { RoleName = banner.RoleName, IsActive = false };
+        
+        showConfirmModal = true;
+    }
+
+    private void CancelSave()
+    {
+        // Revert the actively bound memory object back to the unedited database state
+        if (bannerToSave != null && originalBannerToSave != null)
+        {
+            bannerToSave.BannerText = originalBannerToSave.BannerText;
+            bannerToSave.BackgroundColor = originalBannerToSave.BackgroundColor;
+            bannerToSave.TextColor = originalBannerToSave.TextColor;
+            bannerToSave.IsActive = originalBannerToSave.IsActive;
+        }
+
+        showConfirmModal = false;
+        bannerToSave = null;
+        originalBannerToSave = null;
+    }
+
+    private async Task ConfirmSaveAsync()
+    {
+        if (bannerToSave != null)
+        {
+            await BannerService.UpdateBannerAsync(bannerToSave);
+            showConfirmModal = false;
+            bannerToSave = null;
+            
+            // Re-fetch banners to ensure state is completely in sync with DB
+            banners = await BannerService.GetAllBannersAsync();
+        }
     }
 }

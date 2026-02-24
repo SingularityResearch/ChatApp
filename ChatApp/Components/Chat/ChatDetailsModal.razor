@@ -9,6 +9,15 @@
                 <button type="button" class="btn-close" @onclick="OnClose"></button>
             </div>
             <div class="modal-body">
+                @if (Conversation.IsGroup)
+                {
+                    <h6 class="text-muted small mb-2">CHAT NAME</h6>
+                    <div class="input-group mb-4">
+                        <input type="text" class="form-control" placeholder="Group Name" @bind="editTitle" />
+                        <button class="btn btn-outline-primary" type="button" @onclick="HandleRename">Save</button>
+                    </div>
+                }
+
                 <h6 class="text-muted small mb-2">PARTICIPANTS</h6>
                 <ul class="list-group list-group-flush">
                     @foreach (var uid in Conversation.ParticipantIds)
@@ -28,9 +37,13 @@
                     }
                 </ul>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer d-flex flex-column gap-2">
                 <button class="btn btn-primary w-100" @onclick="OnAddPeople">
                     <i class="bi bi-person-plus-fill me-2"></i>Add People
+                </button>
+                <button class="btn btn-outline-danger w-100"
+                @onclick="() => OnLeaveChat.InvokeAsync(Conversation.ConversationId)">
+                    <i class="bi bi-box-arrow-right me-2"></i>Leave Chat
                 </button>
             </div>
         </div>
@@ -45,4 +58,26 @@
     [Parameter] public string CurrentUserId { get; set; } = string.Empty;
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback OnAddPeople { get; set; }
+    [Parameter] public EventCallback<int> OnLeaveChat { get; set; }
+    [Parameter] public EventCallback<string> OnRenameChat { get; set; }
+
+    private string editTitle = "";
+    private bool wasOpen;
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !wasOpen)
+        {
+            editTitle = Conversation?.Title ?? "";
+        }
+        wasOpen = IsOpen;
+    }
+
+    private async Task HandleRename()
+    {
+        if (Conversation != null)
+        {
+            await OnRenameChat.InvokeAsync(editTitle);
+        }
+    }
 }

@@ -28,4 +28,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     /// Gets or sets the database set of program banners for role-specific headers.
     /// </summary>
     public DbSet<ProgramBanner> ProgramBanners { get; set; } = default!;
+
+    /// <summary>
+    /// Gets or sets the explicit conversation threads.
+    /// </summary>
+    public DbSet<SystemConversation> SystemConversations { get; set; } = default!;
+
+    /// <summary>
+    /// Gets or sets the participants in conversation threads.
+    /// </summary>
+    public DbSet<SystemConversationParticipant> SystemConversationParticipants { get; set; } = default!;
 }
