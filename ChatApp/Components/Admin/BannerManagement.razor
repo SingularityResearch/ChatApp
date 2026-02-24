@@ -1,0 +1,147 @@
+@page "/admin/banners"
+@using ChatApp.Data
+@using ChatApp.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@inject BannerService BannerService
+@inject RoleManager<IdentityRole> RoleManager
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+<PageTitle>Manage Program Banners</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <a href="admin" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to Admin</a>
+            </div>
+            <h2 class="text-white m-0">Manage Program Banners</h2>
+            <div style="width: 120px;"></div> <!-- Spacer for centering -->
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-light mt-3">Loading banners...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var role in availableRoles)
+            {
+                var banner = GetBannerForRole(role.Name!);
+                <div class="col-md-6 mb-4">
+                    <div class="card bg-dark border-secondary h-100 shadow">
+                        <div
+                            class="card-header bg-secondary bg-opacity-25 border-secondary d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 text-white"><i class="bi bi-collection-fill me-2 text-primary"></i>@role.Name</h5>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="active-@role.Name"
+                                @bind="banner.IsActive">
+                                <label class="form-check-label text-light" for="active-@role.Name">Active</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="text-@role.Name" class="form-label text-light">Banner Text</label>
+                                <input type="text" class="form-control bg-dark text-white border-secondary" id="text-@role.Name"
+                                @bind="banner.BannerText" placeholder="Enter banner text...">
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label for="bg-@role.Name" class="form-label text-light">Background Color</label>
+                                    <input type="color" class="form-control form-control-color w-100 bg-dark border-secondary"
+                                        id="bg-@role.Name" @bind="banner.BackgroundColor" title="Choose background color">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="fg-@role.Name" class="form-label text-light">Text Color</label>
+                                    <input type="color" class="form-control form-control-color w-100 bg-dark border-secondary"
+                                        id="fg-@role.Name" @bind="banner.TextColor" title="Choose text color">
+                                </div>
+                            </div>
+
+                            <hr class="border-secondary my-4" />
+                            <h6 class="text-light mb-2">Live Preview:</h6>
+                            <div class="rounded p-2 text-center"
+                                style="background-color: @banner.BackgroundColor; color: @banner.TextColor; border: 1px solid rgba(255,255,255,0.1);">
+                                @(string.IsNullOrWhiteSpace(banner.BannerText) ? "Banner Text Preview" : banner.BannerText)
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent border-secondary text-end">
+                            <button class="btn btn-primary" @onclick="() => SaveBannerAsync(banner)">
+                                <i class="bi bi-save me-2"></i>Save Banner
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (!availableRoles.Any())
+            {
+                <div class="col-12">
+                    <div class="alert alert-info bg-dark border-info text-info">
+                        <i class="bi bi-info-circle-fill me-2"></i> No roles found. Please create roles first in Role
+                        Management.
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private List<ProgramBanner> banners = new();
+    private List<IdentityRole> availableRoles = new();
+    private Dictionary<string, ProgramBanner> roleBanners = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            availableRoles = RoleManager.Roles.ToList();
+            banners = await BannerService.GetAllBannersAsync();
+
+            foreach (var role in availableRoles)
+            {
+                var existing = banners.FirstOrDefault(b => b.RoleName == role.Name);
+                if (existing != null)
+                {
+                    roleBanners[role.Name!] = existing;
+                }
+                else
+                {
+                    roleBanners[role.Name!] = new ProgramBanner
+                        {
+                            RoleName = role.Name!,
+                            BannerText = $"Welcome to {role.Name}",
+                            BackgroundColor = "#101010",
+                            TextColor = "#ffffff",
+                            IsActive = false
+                        };
+                }
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private ProgramBanner GetBannerForRole(string roleName)
+    {
+        return roleBanners.TryGetValue(roleName, out var banner) ? banner : new ProgramBanner { RoleName = roleName };
+    }
+
+    private async Task SaveBannerAsync(ProgramBanner banner)
+    {
+        await BannerService.UpdateBannerAsync(banner);
+        // Toast or notification could be added here
+    }
+}

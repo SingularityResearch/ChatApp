@@ -18,6 +18,8 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<ChatApp.Services.ChatStateService>();
 builder.Services.AddSingleton<ChatApp.Services.IChatMessageService, ChatApp.Services.ChatMessageService>();
 builder.Services.AddSingleton<ChatApp.Services.IEmojiService, ChatApp.Services.EmojiService>();
+builder.Services.AddScoped<ChatApp.Services.BannerService>();
+builder.Services.AddSingleton<ChatApp.Services.BannerStateService>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCascadingAuthenticationState();
@@ -32,7 +34,7 @@ builder.Services.AddAuthentication(options =>
     .AddIdentityCookies();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 

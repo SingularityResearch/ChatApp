@@ -23,4 +23,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     /// Gets or sets the database set of emoji reactions left on messages.
     /// </summary>
     public DbSet<MessageReaction> MessageReactions { get; set; } = default!;
+
+    /// <summary>
+    /// Gets or sets the database set of program banners for role-specific headers.
+    /// </summary>
+    public DbSet<ProgramBanner> ProgramBanners { get; set; } = default!;
 }

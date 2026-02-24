@@ -12,6 +12,7 @@
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IChatMessageService ChatMessageService
 @inject IJSRuntime JSRuntime
+@inject BannerStateService BannerState
 @using Microsoft.AspNetCore.Identity
 @inject UserManager<ChatApp.Data.ApplicationUser> UserManager
 @attribute [Authorize]
@@ -197,6 +198,7 @@
 
     private string? currentUserId;
     private string? currentUserName;
+    private List<string> currentUserRoles = new();
 
     // Setup Safe File Extension Whitelist
     private readonly string[] _allowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".txt", ".docx",
@@ -223,6 +225,11 @@
         {
             currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             currentUserName = user.Identity.Name;
+
+            currentUserRoles = user.Claims
+                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role")
+                .Select(c => c.Value)
+                .ToList();
 
             if (currentUserId != null && currentUserName != null)
             {
@@ -267,7 +274,11 @@
             await _hubConnection.DisposeAsync();
         }
 
-        if (currentUserId != null) ChatState.SetUserOffline(currentUserId);
+        if (currentUserId != null) 
+        {
+            ChatState.SetUserOffline(currentUserId);
+            BannerState.ClearActiveRoles(currentUserId);
+        }
     }
 
     private void HandleStateChange()
@@ -603,8 +614,40 @@
         IsNewChatMode = false;
         IsAddingParticipants = false;
 
+        UpdateBannerForCurrentChat();
+
         await Task.Delay(50);
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chatScrollView");
+    }
+
+    private void UpdateBannerForCurrentChat()
+    {
+        if (SelectedConversation == null || currentUserId == null) 
+        {
+            if (currentUserId != null) BannerState.ClearActiveRoles(currentUserId);
+            return;
+        }
+
+        // We'll intersect roles with everyone in the chat
+        var commonRoles = new HashSet<string>(currentUserRoles);
+
+        foreach (var pId in SelectedConversation.ParticipantIds.Where(id => id != currentUserId))
+        {
+            if (AllUsers.TryGetValue(pId, out var participant))
+            {
+                commonRoles.IntersectWith(participant.Roles);
+            }
+        }
+
+        if (commonRoles.Any())
+        {
+            BannerState.SetActiveRoles(currentUserId, commonRoles.ToList());
+        }
+        else
+        {
+            // If somehow they have no common roles (shouldn't happen under strictly shared role isolation), clear or keep user default
+            BannerState.ClearActiveRoles(currentUserId);
+        }
     }
 
     private void OnStartNewChat()
@@ -613,6 +656,7 @@
         IsNewChatMode = true;
         IsAddingParticipants = false;
         NewChatSelectedUsers.Clear();
+        if (currentUserId != null) BannerState.ClearActiveRoles(currentUserId);
     }
 
     private void ToggleDetails()

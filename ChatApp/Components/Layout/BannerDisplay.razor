@@ -1,0 +1,78 @@
+@using ChatApp.Data
+@using ChatApp.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject BannerService BannerService
+@inject BannerStateService BannerState
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@implements IDisposable
+@rendermode InteractiveServer
+
+@if (activeBanners != null && activeBanners.Any())
+{
+    @foreach (var banner in activeBanners)
+    {
+        <div class="app-banner shadow-sm"
+            style="background-color: @banner.BackgroundColor; color: @banner.TextColor; border-bottom: 1px solid rgba(0,0,0,0.1);">
+            <div class="container-fluid py-2 text-center position-relative">
+                <h5 class="m-0 fw-bold">@banner.BannerText</h5>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<ProgramBanner> activeBanners = new();
+    private List<string> defaultUserRoles = new();
+    private string? currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            defaultUserRoles = user.Claims
+            .Where(c => c.Type == ClaimTypes.Role || c.Type == "role")
+            .Select(c => c.Value)
+            .ToList();
+
+            await LoadBannersAsync();
+        }
+
+        BannerState.OnUserStateChange += OnBannerStateChanged;
+    }
+
+    private void OnBannerStateChanged(string userId)
+    {
+        if (currentUserId == userId)
+        {
+            InvokeAsync(async () =>
+            {
+                await LoadBannersAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async Task LoadBannersAsync()
+    {
+        var targetRoles = (currentUserId != null ? BannerState.GetActiveRoles(currentUserId) : null) ?? defaultUserRoles;
+        if (targetRoles.Any())
+        {
+            activeBanners = await BannerService.GetActiveBannersForRolesAsync(targetRoles);
+        }
+        else
+        {
+            activeBanners.Clear();
+        }
+    }
+
+    public void Dispose()
+    {
+        BannerState.OnUserStateChange -= OnBannerStateChanged;
+    }
+}
