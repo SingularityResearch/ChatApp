@@ -344,8 +344,9 @@ public class ChatMessageService(IServiceScopeFactory scopeFactory) : IChatMessag
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var messages = await db.ChatMessages
-            .Include(m => m.Recipients)
-            .Where(m => m.SenderId == userId || m.Recipients.Any(r => r.UserId == userId))
+            .Include(m => m.Conversation)
+                .ThenInclude(sc => sc!.Participants)
+            .Where(m => m.SenderId == userId || (m.Conversation != null && m.Conversation.Participants.Any(p => p.UserId == userId)))
             .OrderByDescending(m => m.Timestamp)
             .ToListAsync();
 
@@ -353,13 +354,20 @@ public class ChatMessageService(IServiceScopeFactory scopeFactory) : IChatMessag
 
         foreach (var m in messages)
         {
+            var otherParticipantIds = m.Conversation?.Participants
+                .Where(p => p.UserId != m.SenderId)
+                .Select(p => p.UserId)
+                .ToList() ?? new List<string>();
+
+            var otherPartiesString = otherParticipantIds.Count > 0 
+                ? string.Join(", ", otherParticipantIds) 
+                : m.SenderId ?? "Unknown"; // For "Notes to Self"
+
             details.Add(new UserMessageDetailDto
             {
                 MessageId = m.Id,
                 Direction = m.SenderId == userId ? "Sent" : "Received",
-                OtherParties = m.SenderId == userId
-                    ? string.Join(", ", m.Recipients.Select(r => r.UserId))
-                    : m.SenderId ?? "Unknown",
+                OtherParties = otherPartiesString,
                 Timestamp = m.Timestamp
             });
         }

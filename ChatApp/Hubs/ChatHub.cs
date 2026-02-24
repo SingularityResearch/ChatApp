@@ -44,9 +44,9 @@ public class ChatHub(ChatStateService chatStateService, IChatMessageService chat
                 });
 
             var userName = Context.User?.Identity?.Name ?? "Unknown";
-            _chatStateService.SetUserOnline(userId, userName);
-            Console.WriteLine($"[ChatHub] User Online: {userId}. Broadcasting to Others.");
+            _chatStateService.AddUserConnection(userId, userName, Context.ConnectionId);
 
+            Console.WriteLine($"[ChatHub] User Connected: {userId}.");
             // Notify others that this user is online
             await Clients.Others.SendAsync("UserConnected", userId);
         }
@@ -73,11 +73,14 @@ public class ChatHub(ChatStateService chatStateService, IChatMessageService chat
                     if (list.Count == 0)
                     {
                         _userConnections.TryRemove(userId, out _);
-                        _chatStateService.SetUserOffline(userId);
-                        // Notify others offline
-                        _ = Clients.Others.SendAsync("UserDisconnected", userId);
                     }
                 }
+            }
+            _chatStateService.RemoveUserConnection(userId, Context.ConnectionId);
+            // Notify others offline if they have no connections left
+            if (!_chatStateService.IsUserOnline(userId))
+            {
+                _ = Clients.Others.SendAsync("UserDisconnected", userId);
             }
         }
 

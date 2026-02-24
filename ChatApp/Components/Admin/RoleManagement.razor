@@ -1,4 +1,5 @@
 @page "/admin/roles"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
@@ -6,7 +7,13 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject RoleManager<IdentityRole> RoleManager
 @inject UserManager<ApplicationUser> UserManager
-@rendermode InteractiveServer
+
+<style>
+    .custom-dropdown-item:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+    }
+</style>
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -73,19 +80,44 @@
                         <h5 class="mb-0">Users in @SelectedRole.Name</h5>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
+                        <div class="mb-3 position-relative">
                             <label class="form-label">Add User to Role</label>
                             <div class="input-group">
-                                <select class="form-select bg-secondary text-white border-0" @bind="SelectedUserIdToAdd">
-                                    <option value="">Select User...</option>
-                                    @foreach (var user in AllUsers.Where(u => !UsersInRole.Contains(u)))
-                                    {
-                                        <option value="@user.Id">@user.UserName</option>
-                                    }
-                                </select>
+                                <button class="form-control bg-secondary text-white border-0 text-start d-flex justify-content-between align-items-center" type="button" @onclick="ToggleUserDropdown">
+                                    <span class="text-truncate">@(string.IsNullOrEmpty(SelectedUserIdToAdd) ? "Select User..." : AllUsers.FirstOrDefault(u => u.Id == SelectedUserIdToAdd)?.UserName ?? "Select User...")</span>
+                                    <i class="bi bi-chevron-down ms-2 text-muted"></i>
+                                </button>
                                 <button class="btn btn-success" @onclick="AddUserToRole"
                                     disabled="@string.IsNullOrEmpty(SelectedUserIdToAdd)">Add</button>
                             </div>
+                            
+                            @if (IsUserDropdownOpen)
+                            {
+                                <!-- Invisible backdrop for click-away -->
+                                <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 1040;" @onclick="() => IsUserDropdownOpen = false"></div>
+                                
+                                <div class="position-absolute mt-1 bg-dark border border-secondary rounded shadow-lg" style="max-height: 300px; overflow-y: auto; z-index: 1050; left: 0; right: 0;">
+                                    <div class="position-sticky top-0 bg-dark p-2 border-bottom border-secondary" style="z-index: 1060;">
+                                        <input type="text" class="form-control form-control-sm bg-secondary text-white border-0" placeholder="Search users by name..." @bind="UserSearchTerm" @bind:event="oninput" @onclick:stopPropagation autofocus />
+                                    </div>
+                                    <ul class="list-unstyled mb-0 pb-1">
+                                        @foreach (var user in GetFilteredUsersToAdd())
+                                        {
+                                            <li>
+                                                <button class="dropdown-item custom-dropdown-item text-white px-3 py-2 @(SelectedUserIdToAdd == user.Id ? "bg-primary" : "")" 
+                                                   type="button"
+                                                   @onclick="() => SelectUser(user.Id)" @onclick:stopPropagation>
+                                                    @user.UserName
+                                                </button>
+                                            </li>
+                                        }
+                                        @if (!GetFilteredUsersToAdd().Any())
+                                        {
+                                            <li><span class="text-muted px-3 py-2 d-block small">No users found</span></li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
                         </div>
 
                         <hr class="border-secondary" />
@@ -128,16 +160,44 @@
     private IdentityRole? SelectedRole;
     private string NewRoleName = "";
     private string SelectedUserIdToAdd = "";
+    
+    // Searchable Dropdown State
+    private bool IsUserDropdownOpen = false;
+    private string UserSearchTerm = "";
 
     protected override async Task OnInitializedAsync()
     {
         await LoadRoles();
-        AllUsers = await UserManager.Users.ToListAsync();
+        AllUsers = await UserManager.Users.OrderBy(u => u.UserName).ToListAsync();
     }
 
     private async Task LoadRoles()
     {
         Roles = await RoleManager.Roles.OrderBy(r => r.Name).ToListAsync();
+    }
+    
+    private void ToggleUserDropdown()
+    {
+        IsUserDropdownOpen = !IsUserDropdownOpen;
+        if (IsUserDropdownOpen) 
+        {
+            UserSearchTerm = ""; // reset search when opening
+        }
+    }
+
+    private void SelectUser(string userId)
+    {
+        SelectedUserIdToAdd = userId;
+        IsUserDropdownOpen = false;
+    }
+
+    private IEnumerable<ApplicationUser> GetFilteredUsersToAdd()
+    {
+        var available = AllUsers.Where(u => !UsersInRole.Contains(u));
+        if (string.IsNullOrWhiteSpace(UserSearchTerm))
+            return available;
+        
+        return available.Where(u => u.UserName != null && u.UserName.Contains(UserSearchTerm, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task CreateRole()

@@ -12,16 +12,23 @@
         <p>Select users to start a conversation with:</p>
     }
 
+    <div class="mb-3">
+        <input type="text" class="form-control bg-secondary text-white border-secondary" 
+               placeholder="Search users by name..." 
+               @bind="UserSearchTerm" 
+               @bind:event="oninput" />
+    </div>
+
     <div class="list-group" style="max-width: 400px; max-height: 400px; overflow-y: auto;">
-        @foreach (var user in AllUsers)
+        @foreach (var user in GetFilteredUsers())
         {
             var isSelected = SelectedUsers.Contains(user.Key);
             var isOnline = OnlineUsers.ContainsKey(user.Key);
 
-            <button class="list-group-item list-group-item-action @(isSelected ? "active" : "")"
+            <button class="list-group-item list-group-item-action @(isSelected ? "active" : "") bg-dark text-white border-secondary"
             @onclick="() => OnToggleUser.InvokeAsync(user.Key)">
                 <div class="d-flex align-items-center">
-                    <input class="form-check-input darker-border-checkbox me-2" type="checkbox" checked="@isSelected"
+                    <input class="form-check-input darker-border-checkbox me-2 bg-secondary border-0" type="checkbox" checked="@isSelected"
                         readonly />
                     <span class="status-dot @(isOnline ? "online" : "offline")"
                         title="@(isOnline ? "Online" : "Offline")"></span>
@@ -35,9 +42,9 @@
                 </div>
             </button>
         }
-        @if (!AllUsers.Any())
+        @if (!GetFilteredUsers().Any())
         {
-            <div class="text-muted">No other users found.</div>
+            <div class="text-muted p-2">No users found matching "@UserSearchTerm".</div>
         }
     </div>
 </div>
@@ -59,4 +66,14 @@
     [Parameter] public EventCallback<string> OnToggleUser { get; set; }
     [Parameter] public EventCallback<string> OnStart { get; set; }
     [Parameter] public EventCallback<InputFileChangeEventArgs> OnFileUpload { get; set; }
+
+    private string UserSearchTerm = "";
+
+    private IEnumerable<KeyValuePair<string, UserDto>> GetFilteredUsers()
+    {
+        if (string.IsNullOrWhiteSpace(UserSearchTerm))
+            return AllUsers;
+
+        return AllUsers.Where(u => u.Value.UserName.Contains(UserSearchTerm, StringComparison.OrdinalIgnoreCase));
+    }
 }

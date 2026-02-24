@@ -19,49 +19,77 @@ public class ChatStateService(IServiceScopeFactory scopeFactory)
     /// </summary>
     public event Action? OnChange; // General state change
 
-    // UserId -> UserName (Email)
-    private readonly ConcurrentDictionary<string, string> _onlineUsers = new();
+    // UserId -> { ConnectionId -> UserName }
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> _userConnections = new();
 
     /// <summary>
-    /// Marks a user as online.
+    /// Adds a connection for a user, marking them as online if this is their first connection.
     /// </summary>
     /// <param name="userId">The ID of the user logging in.</param>
     /// <param name="userName">The display name or username of the user.</param>
-    public void SetUserOnline(string userId, string userName)
+    /// <param name="connectionId">A unique identifier for this connection session.</param>
+    public void AddUserConnection(string userId, string userName, string connectionId)
     {
-        _onlineUsers.AddOrUpdate(userId, userName, (key, oldValue) => userName);
-        NotifyStateChanged();
-    }
+        var userConns = _userConnections.GetOrAdd(userId, _ => new ConcurrentDictionary<string, string>());
+        bool isFirstConnection = userConns.IsEmpty;
+        
+        userConns.AddOrUpdate(connectionId, userName, (_, _) => userName);
 
-    /// <summary>
-    /// Marks a user as offline.
-    /// </summary>
-    /// <param name="userId">The ID of the user disconnecting.</param>
-    public void SetUserOffline(string userId)
-    {
-        if (_onlineUsers.TryRemove(userId, out _))
+        if (isFirstConnection)
         {
             NotifyStateChanged();
         }
     }
 
     /// <summary>
-    /// Checks if a specified user is currently online.
+    /// Removes a specific connection for a user. Marks them as offline if they have no remaining connections.
+    /// </summary>
+    /// <param name="userId">The ID of the user disconnecting.</param>
+    /// <param name="connectionId">The unique identifier for the connection session ending.</param>
+    public void RemoveUserConnection(string userId, string connectionId)
+    {
+        if (_userConnections.TryGetValue(userId, out var userConns))
+        {
+            userConns.TryRemove(connectionId, out _);
+
+            if (userConns.IsEmpty)
+            {
+                _userConnections.TryRemove(userId, out _);
+                NotifyStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if a specified user is currently online (has at least one active connection).
     /// </summary>
     /// <param name="userId">The user ID to check.</param>
     /// <returns>True if the user is online, otherwise false.</returns>
     public bool IsUserOnline(string userId)
     {
-        return _onlineUsers.ContainsKey(userId);
+        return _userConnections.ContainsKey(userId) && !_userConnections[userId].IsEmpty;
     }
 
     /// <summary>
-    /// Gets a dictionary of all currently online users.
+    /// Gets a dictionary of all currently online users and their display names.
     /// </summary>
     /// <returns>A dictionary mapping User ID to User Name.</returns>
     public Dictionary<string, string> GetOnlineUsers()
     {
-        return _onlineUsers.ToDictionary(k => k.Key, v => v.Value);
+        var onlineUsers = new Dictionary<string, string>();
+        foreach (var kvp in _userConnections)
+        {
+            if (!kvp.Value.IsEmpty)
+            {
+                // Take the username from the first active connection
+                var username = kvp.Value.Values.FirstOrDefault();
+                if (username != null)
+                {
+                    onlineUsers[kvp.Key] = username;
+                }
+            }
+        }
+        return onlineUsers;
     }
 
     /// <summary>
