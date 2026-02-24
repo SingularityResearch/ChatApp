@@ -208,6 +208,10 @@
     private bool IsConnected => _hubConnection?.State == HubConnectionState.Connected;
     private HubConnection? _hubConnection;
 
+    /// <summary>
+    /// Executes after the component has rendered. Used to scroll the chat view down if there are new messages.
+    /// </summary>
+    /// <param name="firstRender">True if this is the first time the component has rendered.</param>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_shouldScrollToBottom)
@@ -218,6 +222,9 @@
         }
     }
 
+    /// <summary>
+    /// Initializes the chat component, fetches user data, connects to SignalR, and loads initial conversation history.
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -268,6 +275,9 @@
         await _hubConnection.StartAsync();
     }
 
+    /// <summary>
+    /// Disposes of the SignalR hub connection and unregisters state change events when the component is destroyed.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         ChatState.OnChange -= HandleStateChange;
@@ -284,12 +294,18 @@
         }
     }
 
+    /// <summary>
+    /// Handles updates to the global chat state (e.g. online users) and forces a UI refresh.
+    /// </summary>
     private void HandleStateChange()
     {
         UpdateOnlineUsers();
         InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Updates the local dictionary of online users by fetching it from the ChatState service.
+    /// </summary>
     private void UpdateOnlineUsers()
     {
         OnlineUsers = ChatState.GetOnlineUsers()
@@ -297,6 +313,11 @@
         .ToDictionary(k => k.Key, v => v.Value);
     }
 
+    /// <summary>
+    /// SignalR handler that updates a specific message's content after an edit.
+    /// </summary>
+    /// <param name="messageId">The ID of the edited message.</param>
+    /// <param name="newContent">The new text content.</param>
     private void HandleMessageEdited(int messageId, string newContent)
     {
         InvokeAsync(() =>
@@ -313,6 +334,10 @@
         });
     }
 
+    /// <summary>
+    /// SignalR handler that removes a deleted message from the UI.
+    /// </summary>
+    /// <param name="messageId">The ID of the deleted message.</param>
     private void HandleMessageDeleted(int messageId)
     {
         InvokeAsync(() =>
@@ -329,6 +354,11 @@
         });
     }
 
+    /// <summary>
+    /// SignalR handler that removes a participant from a conversation when they leave.
+    /// </summary>
+    /// <param name="conversationId">The ID of the conversation.</param>
+    /// <param name="userId">The ID of the user who left.</param>
     private void HandleUserLeftConversation(int conversationId, string userId)
     {
         InvokeAsync(() =>
@@ -355,6 +385,11 @@
         });
     }
 
+    /// <summary>
+    /// SignalR handler that updates a conversation's display title when it is renamed.
+    /// </summary>
+    /// <param name="conversationId">The ID of the conversation.</param>
+    /// <param name="newTitle">The newly assigned title.</param>
     private void HandleConversationTitleUpdated(int conversationId, string newTitle)
     {
         Console.WriteLine($"[Chat.razor] HandleConversationTitleUpdated called. ID: {conversationId}, NewTitle: {newTitle}");
@@ -375,6 +410,10 @@
         });
     }
 
+    /// <summary>
+    /// Initiates a conversation rename request by sending it to the SignalR hub.
+    /// </summary>
+    /// <param name="newTitle">The requested new title for the chat.</param>
     private async Task HandleRenameChat(string newTitle)
     {
         if (_hubConnection != null && SelectedConversation != null && !string.IsNullOrWhiteSpace(newTitle))
@@ -383,6 +422,13 @@
         }
     }
 
+    /// <summary>
+    /// SignalR handler that adds a user's reaction emoji to a message.
+    /// </summary>
+    /// <param name="messageId">The message ID.</param>
+    /// <param name="userId">The ID of the reacting user.</param>
+    /// <param name="userName">The display name of the reacting user.</param>
+    /// <param name="emoji">The emoji string character.</param>
     private void HandleReactionAdded(int messageId, string userId, string userName, string emoji)
     {
         InvokeAsync(() =>
@@ -400,6 +446,12 @@
         });
     }
 
+    /// <summary>
+    /// SignalR handler that removes a specific user's reaction from a message.
+    /// </summary>
+    /// <param name="messageId">The message ID.</param>
+    /// <param name="userId">The user ID whose reaction is being removed.</param>
+    /// <param name="emoji">The emoji string character being removed.</param>
     private void HandleReactionRemoved(int messageId, string userId, string emoji)
     {
         InvokeAsync(() =>
@@ -421,6 +473,10 @@
         });
     }
 
+    /// <summary>
+    /// Fetches all allowed users based on Role visibility rules, retrieves the current user's conversation history, 
+    /// and hydrates view models.
+    /// </summary>
     private async Task LoadData()
     {
         if (currentUserId == null) return;
@@ -510,12 +566,23 @@
         }
     }
 
+    /// <summary>
+    /// Generates a unique string key to identify a conversation based on its participants.
+    /// </summary>
+    /// <param name="userIds">The list of participant UserIDs.</param>
+    /// <returns>A sorted, pipe-delimited string of UserIDs.</returns>
     private string GetConversationKey(IEnumerable<string> userIds)
     {
         var sorted = userIds.OrderBy(u => u).ToList();
         return string.Join("|", sorted);
     }
 
+    /// <summary>
+    /// Creates a human-readable display name for a conversation (e.g., "Alice + 2 others").
+    /// </summary>
+    /// <param name="participantIds">The set of UserIDs in the chat.</param>
+    /// <param name="userMap">A dictionary mapping UserIDs to User data transfer objects.</param>
+    /// <returns>A formatted display string.</returns>
     private string GenerateDisplayNameFromMap(HashSet<string> participantIds, Dictionary<string, UserDto> userMap)
     {
         var others = participantIds.Where(u => u != currentUserId).ToList();
@@ -538,6 +605,17 @@
         }
     }
 
+    /// <summary>
+    /// SignalR handler that receives an incoming chat message and updates the local UI.
+    /// </summary>
+    /// <param name="conversationId">The ID of the conversation.</param>
+    /// <param name="senderId">The UserID of the message sender.</param>
+    /// <param name="senderName">The display name of the message sender.</param>
+    /// <param name="message">The text content of the message.</param>
+    /// <param name="timestamp">The time the message was sent.</param>
+    /// <param name="attachmentUrl">An optional URL for a file attachment.</param>
+    /// <param name="participantIds">A list of UserIDs participating in the conversation.</param>
+    /// <param name="messageId">The database ID of the created message.</param>
     private void HandleMessageReceived(int conversationId, string senderId, string senderName, string message, DateTime timestamp, string? attachmentUrl, List<string>? participantIds, int messageId)
     {
         if (currentUserId == null) return;
@@ -609,6 +687,11 @@
     private string NotificationMessage = string.Empty;
     private Guid CurrentNotificationId;
 
+    /// <summary>
+    /// Displays a temporary toast notification when a new message arrives in a non-active chat.
+    /// </summary>
+    /// <param name="user">The name of the user who sent the message.</param>
+    /// <param name="context">The name of the conversation.</param>
     private void ShowNotification(string user, string context)
     {
         NotificationMessage = $"{user} in {context}";
@@ -630,12 +713,19 @@
         });
     }
 
+    /// <summary>
+    /// Closes the currently visible toast notification.
+    /// </summary>
     private void CloseNotification()
     {
         IsNotificationVisible = false;
     }
 
     // Actions
+    /// <summary>
+    /// Event handler for when a user selects a conversation from the sidebar list.
+    /// </summary>
+    /// <param name="c">The selected conversation view model.</param>
     private async Task OnConversationSelected(ConversationViewModel c)
     {
         SelectedConversation = c;
@@ -648,6 +738,10 @@
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chatScrollView");
     }
 
+    /// <summary>
+    /// Calculates the intersection of programmatic roles among participants and updates the BannerState.
+    /// </summary>
+    /// <param name="participantIds">The UserIDs of the conversation participants.</param>
     private void UpdateBannerForParticipants(IEnumerable<string>? participantIds)
     {
         if (participantIds == null || currentUserId == null)
@@ -683,11 +777,17 @@
         BannerState.SetActiveRoles(currentUserId, commonRoles.ToList());
     }
 
+    /// <summary>
+    /// A helper method that explicitly updates the global banner state based on the currently selected conversation.
+    /// </summary>
     private void UpdateBannerForCurrentChat()
     {
         UpdateBannerForParticipants(SelectedConversation?.ParticipantIds);
     }
 
+    /// <summary>
+    /// Transitions the UI into 'New Chat' mode, clearing the active conversation selection.
+    /// </summary>
     private void OnStartNewChat()
     {
         SelectedConversation = null;
@@ -697,11 +797,17 @@
         if (currentUserId != null) BannerState.ClearActiveRoles(currentUserId);
     }
 
+    /// <summary>
+    /// Toggles the visibility of the conversation details pane.
+    /// </summary>
     private void ToggleDetails()
     {
         IsDetailsOpen = !IsDetailsOpen;
     }
 
+    /// <summary>
+    /// Prepares the UI to add a new user to the currently active conversation, essentially starting a 'New Chat'.
+    /// </summary>
     private void AddUserToCurrentChat()
     {
         IsDetailsOpen = false;
@@ -719,6 +825,10 @@
         UpdateBannerForParticipants(NewChatSelectedUsers);
     }
 
+    /// <summary>
+    /// Sends a request to the SignalR hub for the current user to leave the specified conversation.
+    /// </summary>
+    /// <param name="conversationId">The ID of the conversation to leave.</param>
     private async Task HandleLeaveChat(int conversationId)
     {
         if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
@@ -742,6 +852,10 @@
         }
     }
 
+    /// <summary>
+    /// Toggles a user's selection status when creating a new chat.
+    /// </summary>
+    /// <param name="userId">The UserID to toggle.</param>
     private void OnToggleNewChatUser(string userId)
     {
         if (NewChatSelectedUsers.Contains(userId)) NewChatSelectedUsers.Remove(userId);
@@ -751,16 +865,29 @@
     }
 
     // Updated Send logic to accept message string
+    /// <summary>
+    /// Handles sending a message in an existing active conversation.
+    /// </summary>
+    /// <param name="message">The text message to send.</param>
     private async Task HandleSend(string message)
     {
         await SendMessageInternal(message, false);
     }
 
+    /// <summary>
+    /// Handles sending the first message to initiate a brand new conversation.
+    /// </summary>
+    /// <param name="message">The text message to send.</param>
     private async Task OnStartChat(string message)
     {
         await SendMessageInternal(message, true);
     }
 
+    /// <summary>
+    /// Internal method to dispatch a new message via SignalR.
+    /// </summary>
+    /// <param name="message">The message content.</param>
+    /// <param name="isNewChat">True if this message establishes a new conversation.</param>
     private async Task SendMessageInternal(string message, bool isNewChat)
     {
         if (!string.IsNullOrWhiteSpace(message) && currentUserId != null)
@@ -797,6 +924,10 @@
         }
     }
 
+    /// <summary>
+    /// Handles file uploads from the chat input, validating extensions and uploading via SignalR.
+    /// </summary>
+    /// <param name="e">Event arguments containing the selected file.</param>
     private async Task OnFileUpload(InputFileChangeEventArgs e)
     {
         var file = e.File;
@@ -849,6 +980,10 @@
     }
 
     // Reaction Actions
+    /// <summary>
+    /// Toggles a specific emoji reaction on a specific message.
+    /// </summary>
+    /// <param name="args">A tuple containing the ChatMessage and the emoji string.</param>
     private async Task HandleToggleReaction((ChatMessage msg, string emoji) args)
     {
         if (args.msg.Reactions == null)
@@ -867,6 +1002,11 @@
         }
     }
 
+    /// <summary>
+    /// Sends a SignalR request to add a reaction to a message.
+    /// </summary>
+    /// <param name="msg">The target ChatMessage.</param>
+    /// <param name="emoji">The emoji string character.</param>
     private async Task HandleAddReaction(ChatMessage msg, string emoji)
     {
         if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
@@ -875,6 +1015,11 @@
         }
     }
 
+    /// <summary>
+    /// Sends a SignalR request to remove a reaction from a message.
+    /// </summary>
+    /// <param name="msg">The target ChatMessage.</param>
+    /// <param name="emoji">The emoji string character.</param>
     private async Task HandleRemoveReaction(ChatMessage msg, string emoji)
     {
         if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
@@ -885,6 +1030,10 @@
 
     private ActiveChatView? activeChatView;
 
+    /// <summary>
+    /// Sets the provided message as the active 'Reply' context in the UI.
+    /// </summary>
+    /// <param name="msg">The message being replied to.</param>
     private async Task HandleReply(ChatMessage msg)
     {
         if (activeChatView != null)
@@ -894,17 +1043,29 @@
     }
 
     // UI Helpers for Edit/Delete
+    /// <summary>
+    /// Enables inline edit mode for a specific chat message.
+    /// </summary>
+    /// <param name="msg">The message to edit.</param>
     private void StartEdit(ChatMessage msg)
     {
         msg.IsEditing = true;
         msg.EditBuffer = msg.Message;
     }
 
+    /// <summary>
+    /// Cancels the inline edit mode for a message, discarding local changes.
+    /// </summary>
+    /// <param name="msg">The message being edited.</param>
     private void CancelEdit(ChatMessage msg)
     {
         msg.IsEditing = false;
     }
 
+    /// <summary>
+    /// Saves the modified message content by sending the update via SignalR.
+    /// </summary>
+    /// <param name="msg">The edited message.</param>
     private async Task SaveEdit(ChatMessage msg)
     {
         if (msg.EditBuffer == msg.Message)
@@ -921,18 +1082,28 @@
         msg.IsEditing = false;
     }
 
+    /// <summary>
+    /// Opens the delete confirmation modal for a specific message.
+    /// </summary>
+    /// <param name="msg">The message to be deleted.</param>
     private void DeleteMessage(ChatMessage msg)
     {
         MessageToDelete = msg;
         IsDeleteConfirmOpen = true;
     }
 
+    /// <summary>
+    /// Closes the delete confirmation modal without deleting the message.
+    /// </summary>
     private void CancelDelete()
     {
         IsDeleteConfirmOpen = false;
         MessageToDelete = null;
     }
 
+    /// <summary>
+    /// Confirms the deletion of a message, sending the command via SignalR.
+    /// </summary>
     private async Task ConfirmDelete()
     {
         if (MessageToDelete != null)
