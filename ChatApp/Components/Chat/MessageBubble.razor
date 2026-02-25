@@ -17,8 +17,10 @@
     else
     {
         <div class="message-content-wrapper">
-            <div class="message-actions align-items-center">
-                <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":+1:"))'
+            @if (!IsReadOnly)
+            {
+                <div class="message-actions align-items-center">
+                    <button class="btn-icon btn-reaction" @onclick='() => OnToggleReaction.InvokeAsync((Message, ":+1:"))'
                     title="Thumbs Up" type="button">
                     <FluentEmoji
                         Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.PeopleBody.Color.Default.ThumbsUp())"
@@ -101,7 +103,8 @@
                         <i class="bi bi-trash"></i>
                     </button>
                 }
-            </div>
+                </div>
+            }
 
             @if (!string.IsNullOrEmpty(Message.AttachmentUrl))
             {
@@ -216,6 +219,7 @@
 @code {
     [Parameter] public ChatMessage Message { get; set; } = new();
     [Parameter] public bool IsGroup { get; set; }
+    [Parameter] public bool IsReadOnly { get; set; } = false;
     [Parameter] public EventCallback<ChatMessage> OnStartEdit { get; set; }
     [Parameter] public EventCallback<ChatMessage> OnDelete { get; set; }
     [Parameter] public EventCallback<ChatMessage> OnSaveEdit { get; set; }

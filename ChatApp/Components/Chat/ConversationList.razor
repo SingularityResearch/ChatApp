@@ -3,7 +3,10 @@
 <div class="user-list-panel">
     <div class="p-2 d-flex justify-content-between align-items-center border-bottom border-secondary">
         <h5 class="mb-0">Chats</h5>
-        <button class="btn btn-sm btn-primary" @onclick="OnStartNewChat"><i class="bi bi-plus-lg"></i></button>
+        <div>
+            <button class="btn btn-sm btn-outline-secondary me-2" @onclick="OnStartSearch" title="Search all chats"><i class="bi bi-search"></i></button>
+            <button class="btn btn-sm btn-primary" @onclick="OnStartNewChat" title="New Chat"><i class="bi bi-plus-lg"></i></button>
+        </div>
     </div>
 
     <ul class="list-group list-group-flush">
@@ -47,16 +50,103 @@
             </li>
         }
     </ul>
+
+    <!-- Role-Based Contacts Section -->
+    <div class="p-2 d-flex justify-content-between align-items-center border-top border-bottom border-secondary mt-auto bg-dark">
+        <h6 class="mb-0 text-muted text-uppercase" style="font-size: 0.8rem;"><i class="bi bi-people-fill me-2"></i>Contacts By Program</h6>
+    </div>
+    <div class="accordion accordion-flush flex-grow-1 overflow-auto" id="contactsAccordion">
+        @if (CurrentUserRoles != null && CurrentUserRoles.Any())
+        {
+            var roleIndex = 0;
+            @foreach (var role in CurrentUserRoles.OrderBy(r => r))
+            {
+                var roleId = $"role-{roleIndex}";
+                var usersInRole = GetUsersInRole(role).ToList();
+                var isExpanded = _expandedRoles.Contains(role);
+
+                <div class="accordion-item border-0 bg-transparent">
+                    <h2 class="accordion-header" id="heading-@roleId">
+                        <button class="accordion-button @(isExpanded ? "" : "collapsed") bg-transparent text-light shadow-none py-2 px-3 border-bottom border-secondary" 
+                                type="button" 
+                                @onclick="() => ToggleRoleCategory(role)"
+                                style="font-size: 0.9rem;">
+                            @role
+                            @if(usersInRole.Count > 0){
+                                <span class="badge bg-secondary ms-2 rounded-pill">@usersInRole.Count</span>
+                            }
+                        </button>
+                    </h2>
+                    <div id="collapse-@roleId" class="accordion-collapse collapse @(isExpanded ? "show" : "")" aria-labelledby="heading-@roleId">
+                        <div class="accordion-body p-0">
+                            @if (usersInRole.Count > 0)
+                            {
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var userKvp in usersInRole)
+                                    {
+                                        var isOnline = OnlineUsers.ContainsKey(userKvp.Key) || userKvp.Key == CurrentUserId;
+                                        var isMe = userKvp.Key == CurrentUserId;
+                                        
+                                        <li class="list-group-item contact-item d-flex align-items-center @(isMe ? "pe-none opacity-50" : "")" 
+                                            @onclick='() => { if(!isMe) OnStartNewChatWithUser.InvokeAsync((userKvp.Key, role)); }'>
+                                            <span class="status-dot @(isOnline ? "online" : "offline")" title="@(isOnline ? "Online" : "Offline")"></span>
+                                            <span class="text-truncate ms-1" style="font-size: 0.9rem;">
+                                                @userKvp.Value.UserName
+                                                @if(isMe){ <span class="fst-italic text-muted"> (You)</span> }
+                                            </span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="text-muted fst-italic p-2 ps-4" style="font-size: 0.8rem;">No other members.</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                roleIndex++;
+            }
+        }
+        else
+        {
+            <div class="text-muted p-3 text-center" style="font-size: 0.85rem;">You are not assigned to any programs.</div>
+        }
+    </div>
 </div>
 
 @code {
     [Parameter] public List<ConversationViewModel> Conversations { get; set; } = new();
     [Parameter] public ConversationViewModel? SelectedConversation { get; set; }
     [Parameter] public string CurrentUserId { get; set; } = string.Empty;
+    [Parameter] public List<string> CurrentUserRoles { get; set; } = new();
     [Parameter] public Dictionary<string, string> OnlineUsers { get; set; } = new();
     [Parameter] public Dictionary<string, UserDto> AllUsers { get; set; } = new();
     [Parameter] public EventCallback<ConversationViewModel> OnConversationSelected { get; set; }
     [Parameter] public EventCallback OnStartNewChat { get; set; }
+    [Parameter] public EventCallback OnStartSearch { get; set; }
+    [Parameter] public EventCallback<(string UserId, string RoleContext)> OnStartNewChatWithUser { get; set; }
+
+    private HashSet<string> _expandedRoles = new HashSet<string>();
+
+    private void ToggleRoleCategory(string role)
+    {
+        if (_expandedRoles.Contains(role))
+        {
+            _expandedRoles.Remove(role);
+        }
+        else
+        {
+            _expandedRoles.Add(role);
+        }
+    }
+
+    // Helpers to filter users for the accordion
+    private IEnumerable<KeyValuePair<string, UserDto>> GetUsersInRole(string role)
+    {
+        return AllUsers.Where(kvp => kvp.Value.Roles.Contains(role))
+                       .OrderBy(kvp => kvp.Value.UserName);
+    }
 }
 
 <style>
@@ -106,5 +196,27 @@
     .status-dot.offline {
         background-color: #dc3545;
         opacity: 0.6;
+    }
+
+    .contact-item {
+        background-color: transparent;
+        color: var(--text-primary, #ddd);
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding: 0.4rem 1rem 0.4rem 1.5rem;
+    }
+
+    .contact-item:hover {
+        background-color: var(--layer-fill, #2d2d2d);
+    }
+    
+    /* Accordion Customization for Dark Mode */
+    .accordion-button::after {
+        filter: invert(1) grayscale(100%) brightness(200%);
+        transform: scale(0.7);
+    }
+    
+    .accordion-item {
+        border-radius: 0 !important;
     }
 </style>

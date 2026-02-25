@@ -61,6 +61,8 @@
     [Parameter] public Dictionary<string, UserDto> AllUsers { get; set; } = new();
     [Parameter] public Dictionary<string, string> OnlineUsers { get; set; } = new();
     [Parameter] public HashSet<string> SelectedUsers { get; set; } = new();
+    [Parameter] public string CurrentUserId { get; set; } = string.Empty;
+    [Parameter] public string? RoleContext { get; set; } = null;
     [Parameter] public bool IsAddingParticipants { get; set; }
     [Parameter] public bool IsConnected { get; set; }
     [Parameter] public EventCallback<string> OnToggleUser { get; set; }
@@ -71,9 +73,46 @@
 
     private IEnumerable<KeyValuePair<string, UserDto>> GetFilteredUsers()
     {
-        if (string.IsNullOrWhiteSpace(UserSearchTerm))
-            return AllUsers;
+        var users = AllUsers.Where(u => u.Key != CurrentUserId);
 
-        return AllUsers.Where(u => u.Value.UserName.Contains(UserSearchTerm, StringComparison.OrdinalIgnoreCase));
+        // If a specific accordion role context was provided, strictly enforce it.
+        if (!string.IsNullOrEmpty(RoleContext))
+        {
+            users = users.Where(u => u.Value.Roles.Contains(RoleContext));
+        }
+        else if (SelectedUsers.Count > 0)
+        {
+            // Fallback for multi-role manual selecting (non-accordion driven)
+            HashSet<string>? commonRoles = null;
+            foreach (var suId in SelectedUsers)
+            {
+                if (AllUsers.TryGetValue(suId, out var su))
+                {
+                    if (commonRoles == null)
+                    {
+                        commonRoles = new HashSet<string>(su.Roles, StringComparer.OrdinalIgnoreCase);
+                    }
+                    else
+                    {
+                        commonRoles.IntersectWith(su.Roles);
+                    }
+                }
+            }
+
+            if (commonRoles != null && commonRoles.Count > 0)
+            {
+                users = users.Where(u => u.Value.Roles.Any(r => commonRoles.Contains(r)));
+            }
+            else if (commonRoles != null && commonRoles.Count == 0)
+            {
+                users = Enumerable.Empty<KeyValuePair<string, UserDto>>();
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(UserSearchTerm))
+            return users.OrderBy(u => u.Value.UserName);
+
+        return users.Where(u => u.Value.UserName.Contains(UserSearchTerm, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(u => u.Value.UserName);
     }
 }

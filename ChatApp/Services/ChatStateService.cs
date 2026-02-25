@@ -113,27 +113,27 @@ public class ChatStateService(IServiceScopeFactory scopeFactory)
 
         if (!roles.Any()) return [];
 
-        var visibleUsers = new HashSet<string>();
-        var results = new List<UserDto>();
+        var visibleUsersMap = new Dictionary<string, UserDto>();
 
         foreach (var role in roles)
         {
             var usersInRole = await userManager.GetUsersInRoleAsync(role);
             foreach (var u in usersInRole)
             {
-                if (u.Id != userId && visibleUsers.Add(u.Id))
+                if (!visibleUsersMap.ContainsKey(u.Id))
                 {
                     var userRoles = await userManager.GetRolesAsync(u);
-                    results.Add(new UserDto
+                    visibleUsersMap[u.Id] = new UserDto
                     {
                         Id = u.Id,
                         UserName = u.UserName ?? "Unknown",
                         Roles = [.. userRoles]
-                    });
+                    };
                 }
             }
         }
-        return results;
+        
+        return visibleUsersMap.Values.ToList();
     }
 
     /// <summary>

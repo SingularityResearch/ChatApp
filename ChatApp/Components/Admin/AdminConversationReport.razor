@@ -1,0 +1,125 @@
+@page "/admin/reporting/{UserId}/conversation/{ConversationId:int}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using ChatApp.Services
+@using ChatApp.Models
+@using ChatApp.Data
+@using Microsoft.AspNetCore.Identity
+@inject IChatMessageService ChatMessageService
+@inject UserManager<Data.ApplicationUser> UserManager
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Conversation History</PageTitle>
+
+<div class="h-100 w-100 overflow-auto">
+    <div class="container mt-4 pb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1>Conversation History</h1>
+                @if (_conversation != null)
+                {
+                    <p class="lead">Audit trail for conversation <strong>@(_conversation.Title ?? $"Chat ({_conversation.Id})")</strong> starring <strong>@(_userName ?? UserId)</strong></p>
+                }
+            </div>
+            <a href="admin/reporting/@UserId" class="btn btn-outline-light"><i class="bi bi-arrow-left pe-2"></i>Back to User Activity</a>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card bg-dark text-white border-secondary">
+                    <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-clock-history pe-2"></i>Message Timeline</h5>
+                    </div>
+                    <div class="card-body" style="background-color: var(--bs-gray-900);">
+                        @if (_isLoading)
+                        {
+                            <div class="text-center py-5 text-muted">Loading conversation...</div>
+                        }
+                        else if (_conversation == null)
+                        {
+                            <div class="text-center py-5 text-warning">Conversation not found.</div>
+                        }
+                        else if (!_conversation.Messages.Any())
+                        {
+                            <div class="text-center py-5 text-muted">No messages in this conversation.</div>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column gap-3 p-3 rounded" style="background: var(--mica-bg, #1e1e1e); border: 1px solid var(--card-border, #333);">
+                                @foreach (var message in _conversation.Messages.OrderBy(m => m.Timestamp))
+                                {
+                                    bool isTargetUser = message.SenderId == UserId;
+                                    
+                                    // We create an ephemeral ChatApp.Models.ChatMessage model just for rendering, mapping the DB model.
+                                    var displayMsg = new ChatApp.Models.ChatMessage
+                                    {
+                                        Id = message.Id,
+                                        User = message.SenderName ?? "Unknown",
+                                        SenderId = message.SenderId,
+                                        Message = message.Message,
+                                        AttachmentUrl = message.AttachmentUrl,
+                                        Timestamp = message.Timestamp,
+                                        // Pretend "Mine" is the monitored user so their messages align right
+                                        IsMine = isTargetUser,
+                                        Reactions = message.Reactions.Select(r => new ChatApp.Models.MessageReactionDto 
+                                        { 
+                                            Emoji = r.Emoji, 
+                                            UserId = r.UserId, 
+                                            UserName = _reactionUserNames.GetValueOrDefault(r.UserId, "User") 
+                                        }).ToList()
+                                    };
+
+                                    <div class="d-flex flex-column @(isTargetUser ? "align-items-end" : "align-items-start")">
+                                        <ChatApp.Components.Chat.MessageBubble Message="displayMsg" IsReadOnly="true" />
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string UserId { get; set; } = string.Empty;
+
+    [Parameter]
+    public int ConversationId { get; set; }
+
+    private string? _userName;
+    private SystemConversation? _conversation;
+    private bool _isLoading = true;
+    private Dictionary<string, string> _reactionUserNames = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        if (!string.IsNullOrEmpty(UserId))
+        {
+            var user = await UserManager.FindByIdAsync(UserId);
+            _userName = user?.UserName ?? "Unknown User";
+
+            var c = await ChatMessageService.GetConversationByIdAsync(ConversationId);
+            
+            // Pre-fetch all user names involved in any reactions to avoid async inside the render loop
+            if (c != null)
+            {
+                var reactionUserIds = c.Messages.SelectMany(m => m.Reactions).Select(r => r.UserId).Distinct();
+                foreach(var id in reactionUserIds)
+                {
+                    if(!_reactionUserNames.ContainsKey(id))
+                    {
+                        var u = await UserManager.FindByIdAsync(id);
+                        _reactionUserNames[id] = u?.UserName ?? "Unknown";
+                    }
+                }
+            }
+            _conversation = c;
+        }
+        _isLoading = false;
+    }
+}

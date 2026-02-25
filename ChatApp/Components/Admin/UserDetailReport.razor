@@ -11,6 +11,16 @@
 
 <PageTitle>Detailed User Activity</PageTitle>
 
+<style>
+    .clickable-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    .clickable-row:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+</style>
+
 <div class="h-100 w-100 overflow-auto">
     <div class="container mt-4 pb-5">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -58,7 +68,7 @@
                                 {
                                     @foreach (var detail in _details)
                                     {
-                                        <tr>
+                                        <tr class="clickable-row" @onclick="() => NavigateToConversation(detail.SystemConversationId)">
                                             <td>
                                                 @if (detail.Direction == "Sent")
                                                 {
@@ -108,5 +118,14 @@
         _details = null;
         _details = await ChatMessageService.GetUserMessageDetailsAsync(UserId);
         StateHasChanged();
+    }
+
+    private void NavigateToConversation(int conversationId)
+    {
+        // Don't navigate if it's an un-associable message (Id = 0)
+        if (conversationId > 0)
+        {
+            Navigation.NavigateTo($"/admin/reporting/{UserId}/conversation/{conversationId}");
+        }
     }
 }

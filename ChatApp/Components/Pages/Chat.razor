@@ -23,36 +23,43 @@
 <div class="chat-container">
     <!-- Sidebar -->
     <ConversationList Conversations="Conversations" SelectedConversation="SelectedConversation"
-        CurrentUserId="@currentUserId" OnlineUsers="OnlineUsers" AllUsers="AllUsers"
-        OnConversationSelected="OnConversationSelected" OnStartNewChat="OnStartNewChat" />
+        CurrentUserId="@currentUserId" CurrentUserRoles="currentUserRoles" 
+        OnlineUsers="OnlineUsers" AllUsers="AllUsers"
+        OnConversationSelected="OnConversationSelected" OnStartNewChat="OnStartNewChat"
+        OnStartNewChatWithUser="StartNewChatWithUser" OnStartSearch="OnStartSearch" />
 
     <!-- Main Chat Area -->
     <div class="chat-main-area">
         @if (IsNewChatMode)
         {
-                <NewChatView AllUsers="AllUsers" OnlineUsers="OnlineUsers" SelectedUsers="NewChatSelectedUsers"
-                    IsAddingParticipants="IsAddingParticipants" IsConnected="IsConnected" OnToggleUser="OnToggleNewChatUser"
-                    OnStart="OnStartChat" OnFileUpload="OnFileUpload" />
+            <NewChatView AllUsers="AllUsers" OnlineUsers="OnlineUsers" SelectedUsers="NewChatSelectedUsers"
+                CurrentUserId="@currentUserId" RoleContext="@NewChatRoleContext"
+                IsAddingParticipants="IsAddingParticipants" IsConnected="IsConnected" OnToggleUser="OnToggleNewChatUser"
+                OnStart="OnStartChat" OnFileUpload="OnFileUpload" />
+        }
+        else if (IsSearchMode)
+        {
+            <ChatSearchView Conversations="Conversations" OnResultClicked="HandleSearchResultClicked" />
         }
         else if (SelectedConversation != null)
         {
-                <ActiveChatView @ref="activeChatView" Conversation="SelectedConversation" IsConnected="IsConnected"
-                    OnToggleDetails="ToggleDetails" OnSend="HandleSend" OnFileUpload="OnFileUpload" OnStartEdit="StartEdit"
-                    OnDelete="DeleteMessage" OnSaveEdit="SaveEdit" OnCancelEdit="CancelEdit" OnReply="HandleReply"
-                    OnToggleReaction="HandleToggleReaction" />
+            <ActiveChatView @ref="activeChatView" Conversation="SelectedConversation" IsConnected="IsConnected"
+                OnToggleDetails="ToggleDetails" OnSend="HandleSend" OnFileUpload="OnFileUpload" OnStartEdit="StartEdit"
+                OnDelete="DeleteMessage" OnSaveEdit="SaveEdit" OnCancelEdit="CancelEdit" OnReply="HandleReply"
+                OnToggleReaction="HandleToggleReaction" />
 
-                <ChatDetailsModal IsOpen="IsDetailsOpen" Conversation="SelectedConversation" AllUsers="AllUsers"
-                    OnlineUsers="OnlineUsers" CurrentUserId="@currentUserId" OnClose="ToggleDetails"
-                    OnAddPeople="AddUserToCurrentChat" OnLeaveChat="HandleLeaveChat" OnRenameChat="HandleRenameChat" />
+            <ChatDetailsModal IsOpen="IsDetailsOpen" Conversation="SelectedConversation" AllUsers="AllUsers"
+                OnlineUsers="OnlineUsers" CurrentUserId="@currentUserId" OnClose="ToggleDetails"
+                OnAddPeople="AddUserToCurrentChat" OnLeaveChat="HandleLeaveChat" OnRenameChat="HandleRenameChat" />
 
-                <DeleteConfirmationModal IsOpen="IsDeleteConfirmOpen" Message="MessageToDelete" OnConfirm="ConfirmDelete"
-                    OnCancel="CancelDelete" />
+            <DeleteConfirmationModal IsOpen="IsDeleteConfirmOpen" Message="MessageToDelete" OnConfirm="ConfirmDelete"
+                OnCancel="CancelDelete" />
         }
         else
         {
-                <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
-                    <p class="fs-4">Select a conversation or start a new one.</p>
-                </div>
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                <p class="fs-4">Select a conversation or start a new one.</p>
+            </div>
         }
     </div>
 </div>
@@ -185,7 +192,11 @@
     // State
     private List<ConversationViewModel> Conversations = new List<ConversationViewModel>();
     private ConversationViewModel? SelectedConversation;
+    // State for New Chat / Details
     private bool IsNewChatMode = false;
+    private bool IsSearchMode = false;
+    private int? _jumpToMessageId = null;
+    private string? NewChatRoleContext = null;
     private bool IsDetailsOpen = false;
     private bool IsAddingParticipants = false;
     private bool _shouldScrollToBottom = false;
@@ -214,7 +225,14 @@
     /// <param name="firstRender">True if this is the first time the component has rendered.</param>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_shouldScrollToBottom)
+        if (_jumpToMessageId.HasValue)
+        {
+            var msgId = _jumpToMessageId.Value;
+            _jumpToMessageId = null;
+            await Task.Delay(150); // slight delay for DOM
+            await JSRuntime.InvokeVoidAsync("scrollToElement", "chatScrollView", $"message-{msgId}");
+        }
+        else if (_shouldScrollToBottom)
         {
             _shouldScrollToBottom = false;
             await Task.Delay(100);
@@ -728,7 +746,9 @@
     {
         SelectedConversation = c;
         IsNewChatMode = false;
+        IsSearchMode = false;
         IsAddingParticipants = false;
+        NewChatRoleContext = null; // Clear context when selecting an existing chat
 
         UpdateBannerForCurrentChat();
 
@@ -790,10 +810,42 @@
     {
         SelectedConversation = null;
         IsNewChatMode = true;
+        IsSearchMode = false;
+        NewChatRoleContext = null; // Clear context for a global new chat
         IsAddingParticipants = false;
-        NewChatSelectedUsers.Clear();
-        if (currentUserId != null) BannerState.ClearActiveRoles(currentUserId);
     }
+
+    /// <summary>
+    /// Transitions the UI into 'Search' mode.
+    /// </summary>
+    private void OnStartSearch()
+    {
+        SelectedConversation = null;
+        IsNewChatMode = false;
+        IsSearchMode = true;
+        NewChatRoleContext = null;
+        IsAddingParticipants = false;
+    }
+
+    /// <summary>
+    /// Handles jumping to a specific search result.
+    /// </summary>
+    private async Task HandleSearchResultClicked((int ConversationId, int MessageId) selection)
+    {
+        var conv = Conversations.FirstOrDefault(c => c.ConversationId == selection.ConversationId);
+        if (conv != null)
+        {
+            SelectedConversation = conv;
+            IsSearchMode = false;
+            IsNewChatMode = false;
+
+            UpdateBannerForCurrentChat();
+
+            _jumpToMessageId = selection.MessageId;
+            StateHasChanged();
+        }
+    }
+
 
     /// <summary>
     /// Toggles the visibility of the conversation details pane.
@@ -801,6 +853,35 @@
     private void ToggleDetails()
     {
         IsDetailsOpen = !IsDetailsOpen;
+    }
+
+    /// <summary>
+    /// Prepares the UI to start a new chat, pre-selecting a specific user.
+    /// Used when initiating a chat directly from the User Contacts list sidebar.
+    /// </summary>
+    private async Task StartNewChatWithUser((string UserId, string RoleContext) data)
+    {
+        var (userId, roleContext) = data;
+        
+        // Find if an active 1-1 conversation already exists with *only* this user
+        var existing1on1 = Conversations.FirstOrDefault(c =>
+            !c.IsGroup &&
+            c.ParticipantIds.Count == 2 &&
+            c.ParticipantIds.Contains(userId));
+
+        if (existing1on1 != null)
+        {
+            await OnConversationSelected(existing1on1);
+        }
+        else
+        {
+            IsNewChatMode = true;
+            IsAddingParticipants = false;
+            NewChatRoleContext = roleContext;
+            NewChatSelectedUsers.Clear();
+            NewChatSelectedUsers.Add(userId);
+            UpdateBannerForParticipants(NewChatSelectedUsers);
+        }
     }
 
     /// <summary>

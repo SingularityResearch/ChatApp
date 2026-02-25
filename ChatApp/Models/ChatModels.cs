@@ -75,6 +75,7 @@ public class UserActivityDto
 public class UserMessageDetailDto
 {
     public int MessageId { get; set; }
+    public int SystemConversationId { get; set; }
     public string Direction { get; set; } = string.Empty; // "Sent" or "Received"
     public string OtherParties { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }

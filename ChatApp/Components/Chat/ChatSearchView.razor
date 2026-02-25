@@ -1,0 +1,163 @@
+@using ChatApp.Models
+
+<div class="h-100 d-flex flex-column search-container">
+    <div class="p-3 border-bottom border-secondary bg-mica-alt">
+        <h4 class="mb-3"><i class="bi bi-search me-2"></i>Search Conversations</h4>
+        <div class="input-group">
+            <input type="text" class="form-control" placeholder="Type to search all messages..." 
+                   @bind="SearchTerm" @bind:event="oninput" @ref="searchInput" />
+            @if (!string.IsNullOrEmpty(SearchTerm))
+            {
+                <button class="btn btn-outline-secondary" type="button" @onclick="ClearSearch">
+                    <i class="bi bi-x"></i>
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="flex-grow-1 overflow-auto p-3">
+        @if (string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            <div class="text-center text-muted mt-5">
+                <i class="bi bi-search" style="font-size: 3rem; opacity: 0.2;"></i>
+                <p class="mt-3">Enter a keyword to search across all your loaded chats.</p>
+            </div>
+        }
+        else
+        {
+            var results = GetSearchResults();
+            if (!results.Any())
+            {
+                <div class="text-center text-muted mt-5">
+                    <p>No messages found matching "<strong>@SearchTerm</strong>".</p>
+                </div>
+            }
+            else
+            {
+                <div class="list-group">
+                    @foreach (var result in results)
+                    {
+                        <button class="list-group-item list-group-item-action bg-transparent text-light border-secondary mb-2 rounded"
+                                @onclick="() => OnResultClicked.InvokeAsync((result.ConversationId, result.MessageId))">
+                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                <h6 class="mb-0 text-primary">@result.ConversationTitle</h6>
+                                <small class="text-muted">@result.Timestamp.ToShortDateString() @result.Timestamp.ToShortTimeString()</small>
+                            </div>
+                            <div class="mb-1 text-truncate">
+                                <strong>@result.SenderName:</strong>
+                                <span class="text-white-50 ms-1">@HighlightMatch(result.MessageSnippet)</span>
+                            </div>
+                        </button>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public List<ConversationViewModel> Conversations { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<(int ConversationId, int MessageId)> OnResultClicked { get; set; }
+
+    private string SearchTerm { get; set; } = string.Empty;
+    private ElementReference searchInput;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await searchInput.FocusAsync();
+            }
+            catch { }
+        }
+    }
+
+    private void ClearSearch()
+    {
+        SearchTerm = string.Empty;
+    }
+
+    private IEnumerable<SearchResult> GetSearchResults()
+    {
+        if (string.IsNullOrWhiteSpace(SearchTerm))
+            return Enumerable.Empty<SearchResult>();
+
+        var term = SearchTerm.Trim();
+        var results = new List<SearchResult>();
+
+        foreach (var conv in Conversations)
+        {
+            var matches = conv.Messages.Where(m => 
+                !string.IsNullOrWhiteSpace(m.Message) && 
+                m.Message.Contains(term, StringComparison.OrdinalIgnoreCase));
+
+            foreach (var match in matches)
+            {
+                results.Add(new SearchResult
+                {
+                    ConversationId = conv.ConversationId,
+                    ConversationTitle = conv.DisplayTitle,
+                    MessageId = match.Id,
+                    SenderName = match.User,
+                    MessageSnippet = match.Message,
+                    Timestamp = match.Timestamp
+                });
+            }
+        }
+
+        return results.OrderByDescending(r => r.Timestamp);
+    }
+
+    private MarkupString HighlightMatch(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(SearchTerm))
+            return new MarkupString(System.Net.WebUtility.HtmlEncode(text));
+
+        // Create a simple snippet of text max 100 chars
+        if (text.Length > 100)
+        {
+            var idx = text.IndexOf(SearchTerm, StringComparison.OrdinalIgnoreCase);
+            if (idx > -1)
+            {
+                var start = Math.Max(0, idx - 40);
+                var length = Math.Min(text.Length - start, 100);
+                text = (start > 0 ? "..." : "") + text.Substring(start, length) + (start + length < text.Length ? "..." : "");
+            }
+        }
+
+        var encodedSafeText = System.Net.WebUtility.HtmlEncode(text);
+        var encodedTerm = System.Net.WebUtility.HtmlEncode(SearchTerm.Trim());
+
+        var regex = new System.Text.RegularExpressions.Regex(
+            $"({System.Text.RegularExpressions.Regex.Escape(encodedTerm)})", 
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        var highlighted = regex.Replace(encodedSafeText, "<mark class=\"bg-warning text-dark px-1 rounded\">$1</mark>");
+        return new MarkupString(highlighted);
+    }
+
+    private class SearchResult
+    {
+        public int ConversationId { get; set; }
+        public string ConversationTitle { get; set; } = string.Empty;
+        public int MessageId { get; set; }
+        public string SenderName { get; set; } = string.Empty;
+        public string MessageSnippet { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+    }
+}
+
+<style>
+    .search-container {
+        background-color: var(--mica-bg);
+    }
+    .list-group-item-action:hover {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        cursor: pointer;
+    }
+</style>

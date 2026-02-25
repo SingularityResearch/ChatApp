@@ -49,3 +49,15 @@ window.positionEmojiPicker = (buttonId, pickerId) => {
     picker.style.left = left + 'px';
     picker.style.visibility = 'visible';
 };
+window.scrollToElement = (containerId, elementId) => {
+    var container = document.getElementById(containerId);
+    var element = document.getElementById(elementId);
+    if (container && element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        element.classList.add('highlight-message');
+        setTimeout(() => {
+            element.classList.remove('highlight-message');
+        }, 2000);
+    }
+};

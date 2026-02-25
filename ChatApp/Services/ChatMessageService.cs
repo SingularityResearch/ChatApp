@@ -78,6 +78,13 @@ public interface IChatMessageService
     Task<List<UserMessageDetailDto>> GetUserMessageDetailsAsync(string userId);
 
     /// <summary>
+    /// Retrieves a specific conversation by its ID.
+    /// </summary>
+    /// <param name="conversationId">The ID of the conversation to retrieve.</param>
+    /// <returns>The SystemConversation with its history, or null if not found.</returns>
+    Task<SystemConversation?> GetConversationByIdAsync(int conversationId);
+
+    /// <summary>
     /// Adds a reaction to a specified message.
     /// </summary>
     /// <param name="messageId">The ID of the message to react to.</param>
@@ -366,6 +373,7 @@ public class ChatMessageService(IServiceScopeFactory scopeFactory) : IChatMessag
             details.Add(new UserMessageDetailDto
             {
                 MessageId = m.Id,
+                SystemConversationId = m.Conversation?.Id ?? 0,
                 Direction = m.SenderId == userId ? "Sent" : "Received",
                 OtherParties = otherPartiesString,
                 Timestamp = m.Timestamp
@@ -384,5 +392,18 @@ public class ChatMessageService(IServiceScopeFactory scopeFactory) : IChatMessag
         }
 
         return details;
+    }
+
+    /// <inheritdoc/>
+    public async Task<SystemConversation?> GetConversationByIdAsync(int conversationId)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        return await db.SystemConversations
+            .Include(c => c.Participants)
+            .Include(c => c.Messages)
+                .ThenInclude(m => m.Reactions)
+            .FirstOrDefaultAsync(c => c.Id == conversationId);
     }
 }
