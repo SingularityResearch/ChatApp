@@ -10,8 +10,11 @@ For deployment requirements and diagrams, please refer to the [Deployment Requir
 
 ### Core Messaging
 - **Real-time Messaging**: Instant message delivery using SignalR.
+- **Rich Text Editing**: Optional WYSIWYG editor to send messages with formatting (Bold, Italic, Color, Size, Lists).
+- **Message Reactions**: Express yourself using quick emojis or a full, searchable emoji picker.
 - **Message Management**:
-    - **Edit Messages**: Inline editing for fixing typos or updating content.
+    - **Reply to Messages**: Quote specific messages to maintain conversation context.
+    - **Edit Messages**: Inline editing for fixing typos (supports both plain text and rich text messages).
     - **Delete Messages**: Remove messages with a secure, custom-styled confirmation modal.
 - **File Sharing**: 
     - Upload and share images/files directly in the chat.
@@ -21,6 +24,7 @@ For deployment requirements and diagrams, please refer to the [Deployment Requir
 - **Conversation Grouping**: 
     - Messages are automatically grouped into conversations (1-on-1 or Groups).
     - Sidebar lists recent chats, sorted by activity.
+- **Contextual Banners**: Dynamic banners appear at the top of the chat to highlight the shared roles or programs common among all conversation participants.
 - **User Presence**: 
     - Real-time **Online/Offline** status indicators.
     - Status dots shown in the sidebar and chat details.
@@ -37,13 +41,14 @@ For deployment requirements and diagrams, please refer to the [Deployment Requir
 ### Identity & Security
 - **Authentication**: Built on ASP.NET Core Identity, using Active Directory as the authentication provider.
 - **User Management**: Secure login and registration.
+- **Message Sanitization**: Custom Regex-based HTML Document Sanitizer to securely display WYSIWYG rich-text payloads and prevent Cross-Site Scripting (XSS).
 - **Secure File Handling**: Attachments are strictly whitelisted by extension to prevent malicious uploads.
 - **Secure Actions**: Server-side enforced authorization (BOLA/IDOR protection) for message edit and delete actions.
 - **Identity Protection**: Strict server-side mapping of User Identifiers to prevent sender spoofing.
 
 ### Admin Features
 - **Admin Dashboard**: Secure administrative views protected by ASP.NET Authorization Roles.
-- **Role Management**: Control user access levels and group assignments from an intuitive interface.
+- **Role Management**: Control user access levels and group assignments using a searchable, scrollable, and alphabetical user selection interface.
 - **Reporting & Activity**: 
     - At-a-glance metrics for total message counts and last-active dates.
     - Drill-down message history for any user, enabling auditing without exposing sensitive message content.
