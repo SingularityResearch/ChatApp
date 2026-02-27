@@ -2,6 +2,7 @@ using ChatApp.Data;
 using ChatApp.Models;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace ChatApp.Services;
 
 /// <summary>
@@ -116,12 +117,15 @@ public class ChatMessageService(IServiceScopeFactory scopeFactory) : IChatMessag
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+        var sanitizer = scope.ServiceProvider.GetRequiredService<HtmlSanitizerService>();
+        string sanitizedMessage = sanitizer.Sanitize(message);
+
         var msgEntity = new Data.ChatMessage
         {
             SystemConversationId = conversationId,
             SenderId = senderId,
             SenderName = senderName,
-            Message = message,
+            Message = sanitizedMessage,
             Timestamp = DateTime.Now,
             AttachmentUrl = attachmentUrl
         };
@@ -233,7 +237,8 @@ public class ChatMessageService(IServiceScopeFactory scopeFactory) : IChatMessag
 
         if (msg != null)
         {
-            msg.Message = newContent;
+            var sanitizer = scope.ServiceProvider.GetRequiredService<HtmlSanitizerService>();
+            msg.Message = sanitizer.Sanitize(newContent);
             await db.SaveChangesAsync();
             return true;
         }

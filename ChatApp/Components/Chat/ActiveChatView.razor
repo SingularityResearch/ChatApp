@@ -14,7 +14,7 @@
 <div class="chat-messages" id="chatScrollView">
     @foreach (var msg in Conversation.Messages)
     {
-        <div id="message-@msg.Id">
+        <div id="message-@msg.Id" class="d-flex flex-column">
             <MessageBubble Message="msg" IsGroup="@Conversation.IsGroup" OnStartEdit="OnStartEdit" OnDelete="OnDelete"
                 OnSaveEdit="OnSaveEdit" OnCancelEdit="OnCancelEdit" OnReply="OnReply" OnToggleReaction="OnToggleReaction" />
         </div>

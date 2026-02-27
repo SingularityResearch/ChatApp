@@ -1,0 +1,143 @@
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<div class="w-100 d-flex flex-column h-100">
+    <div class="wysiwyg-toolbar d-flex align-items-center flex-wrap gap-1 px-2 py-1 w-100 border-bottom" style="border-color: var(--card-border, #444) !important;">
+    <button class="btn btn-sm btn-icon text-light m-0" type="button" @onclick='() => ExecuteFormat("bold")' title="Bold" style="width: 28px; height: 28px;"><i class="bi bi-type-bold"></i></button>
+    <button class="btn btn-sm btn-icon text-light m-0" type="button" @onclick='() => ExecuteFormat("italic")' title="Italic" style="width: 28px; height: 28px;"><i class="bi bi-type-italic"></i></button>
+    <button class="btn btn-sm btn-icon text-light m-0" type="button" @onclick='() => ExecuteFormat("underline")' title="Underline" style="width: 28px; height: 28px;"><i class="bi bi-type-underline"></i></button>
+    <button class="btn btn-sm btn-icon text-light m-0" type="button" @onclick='() => ExecuteFormat("strikeThrough")' title="Strikethrough" style="width: 28px; height: 28px;"><i class="bi bi-type-strikethrough"></i></button>
+    <div class="action-divider mx-1" style="height: 16px;"></div>
+    <button class="btn btn-sm btn-icon text-light m-0" type="button" @onclick='() => ExecuteFormat("insertUnorderedList")' title="Bullet List" style="width: 28px; height: 28px;"><i class="bi bi-list-ul"></i></button>
+    <button class="btn btn-sm btn-icon text-light m-0" type="button" @onclick='() => ExecuteFormat("insertOrderedList")' title="Numbered List" style="width: 28px; height: 28px;"><i class="bi bi-list-ol"></i></button>
+    <div class="action-divider mx-1" style="height: 16px;"></div>
+    <div class="position-relative d-inline-block" style="width: 28px; height: 28px;">
+        <button class="btn btn-sm btn-icon text-light m-0 w-100 h-100" type="button" @onclick="ToggleFontSizeMenu" title="Font Size">
+            <i class="bi bi-fonts" style="font-size: 1.1em;"></i>
+        </button>
+        @if (ShowFontSizeMenu)
+        {
+            <div class="position-fixed shadow" style="top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1040; background: transparent;" @onclick="() => ShowFontSizeMenu = false"></div>
+            <div class="position-absolute shadow rounded py-1" style="bottom: 100%; left: 0; transform: translateY(-4px); background-color: var(--card-bg, #2b2b2b); border: 1px solid var(--card-border, #444); z-index: 1041; min-width: 100px;">
+                <button class="dropdown-item text-light px-3 py-1" style="font-size: 0.85rem;" type="button" @onclick='() => SelectFontSize("2")'>Small</button>
+                <button class="dropdown-item text-light px-3 py-1" style="font-size: 1rem;" type="button" @onclick='() => SelectFontSize("3")'>Medium</button>
+                <button class="dropdown-item text-light px-3 py-1" style="font-size: 1.25rem;" type="button" @onclick='() => SelectFontSize("5")'>Large</button>
+            </div>
+        }
+    </div>
+    <div class="position-relative d-inline-block" style="width: 28px; height: 28px;" title="Text Color">
+        <input type="color" @onclick="SaveSelection" @oninput="HandleColorInput"
+            style="opacity: 0; position: absolute; left: 0; top: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2;" />
+        <button class="btn btn-sm btn-icon text-light m-0 w-100 h-100 position-absolute" type="button" style="left: 0; top: 0; z-index: 1; pointer-events: none;">
+            <i class="bi bi-palette-fill" style="font-size: 1.1em;"></i>
+        </button>
+    </div>
+</div>
+    <div id="@EditorId" class="chat-input-field flex-grow-1 px-2 py-1" contenteditable="true"
+        style="min-height: 36px; max-height: 150px; overflow-y: auto; outline: none; white-space: pre-wrap; word-break: break-word;"
+        @ref="wysiwygDiv" @onkeyup="HandleKeyUp" @onblur="HandleBlur"></div>
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public EventCallback<Microsoft.AspNetCore.Components.Web.KeyboardEventArgs> OnKeyUp { get; set; }
+    [Parameter] public string EditorId { get; set; } = $"wysiwyg-editor-{Guid.NewGuid():N}";
+
+    private ElementReference wysiwygDiv;
+    private DotNetObjectReference<WysiwygEditor>? _objRef;
+
+    protected override void OnInitialized()
+    {
+        _objRef = DotNetObjectReference.Create(this);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("chatWysiwyg.init", EditorId, _objRef);
+            await JSRuntime.InvokeVoidAsync("chatWysiwyg.setContent", EditorId, Value);
+            await JSRuntime.InvokeVoidAsync("chatWysiwyg.focus", EditorId);
+        }
+    }
+
+    [JSInvokable]
+    public async Task UpdateContent(string content)
+    {
+        if (Value != content)
+        {
+            Value = content;
+            await ValueChanged.InvokeAsync(content);
+        }
+    }
+
+    public async Task InsertHtmlAsync(string html)
+    {
+        await ExecuteFormat("insertHTML", html);
+    }
+    
+    public async Task InsertTextAsync(string text)
+    {
+        await ExecuteFormat("insertText", text);
+    }
+
+    public async Task FocusAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("chatWysiwyg.focus", EditorId);
+    }
+
+    public async Task SetContentAsync(string content)
+    {
+        Value = content;
+        await JSRuntime.InvokeVoidAsync("chatWysiwyg.setContent", EditorId, content);
+    }
+
+    private async Task ExecuteFormat(string command, string value = "")
+    {
+        await JSRuntime.InvokeVoidAsync("chatWysiwyg.executeCommand", command, value);
+        await JSRuntime.InvokeVoidAsync("chatWysiwyg.focus", EditorId);
+    }
+
+    private bool ShowFontSizeMenu = false;
+
+    private void ToggleFontSizeMenu()
+    {
+        ShowFontSizeMenu = !ShowFontSizeMenu;
+    }
+
+    private async Task SelectFontSize(string size)
+    {
+        ShowFontSizeMenu = false;
+        await ExecuteFormat("fontSize", size);
+    }
+
+    private async Task SaveSelection()
+    {
+        await JSRuntime.InvokeVoidAsync("chatWysiwyg.saveSelection");
+    }
+
+    private async Task HandleColorInput(ChangeEventArgs e)
+    {
+        var color = e.Value?.ToString() ?? "#ffffff";
+        await JSRuntime.InvokeVoidAsync("chatWysiwyg.executeColorCommand", "foreColor", color);
+    }
+
+    private async Task HandleKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (OnKeyUp.HasDelegate)
+        {
+            await OnKeyUp.InvokeAsync(e);
+        }
+    }
+
+    private Task HandleBlur()
+    {
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _objRef?.Dispose();
+    }
+}

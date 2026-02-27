@@ -7,6 +7,9 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject RoleManager<IdentityRole> RoleManager
 @inject UserManager<ApplicationUser> UserManager
+@using Microsoft.AspNetCore.SignalR
+@using ChatApp.Hubs
+@inject IHubContext<ChatHub> ChatHubContext
 
 <style>
     .custom-dropdown-item:hover {
@@ -279,6 +282,7 @@
             {
                 await UserManager.AddToRoleAsync(user, SelectedRole.Name!);
                 await SelectRole(SelectedRole); // Refresh
+                await ChatHubContext.Clients.All.SendAsync("UserRolesUpdated", user.Id);
             }
         }
     }
@@ -289,6 +293,7 @@
         {
             await UserManager.RemoveFromRoleAsync(user, SelectedRole.Name!);
             await SelectRole(SelectedRole); // Refresh
+            await ChatHubContext.Clients.All.SendAsync("UserRolesUpdated", user.Id);
         }
     }
 }

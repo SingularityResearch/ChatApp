@@ -288,6 +288,7 @@
         _hubConnection.On<int, string, string>("ReactionRemoved", HandleReactionRemoved);
         _hubConnection.On<int, string>("UserLeftConversation", HandleUserLeftConversation);
         _hubConnection.On<int, string>("ConversationTitleUpdated", HandleConversationTitleUpdated);
+        _hubConnection.On<string>("UserRolesUpdated", HandleUserRolesUpdated);
 
         await _hubConnection.StartAsync();
     }
@@ -436,6 +437,30 @@
         {
             await _hubConnection.SendAsync("UpdateConversationTitle", SelectedConversation.ConversationId, newTitle);
         }
+    }
+
+    /// <summary>
+    /// SignalR handler that updates the current user's roles when modified by an Admin.
+    /// </summary>
+    /// <param name="updatedUserId">The ID of the user whose roles were updated.</param>
+    private void HandleUserRolesUpdated(string updatedUserId)
+    {
+        InvokeAsync(async () =>
+        {
+            if (updatedUserId == currentUserId && currentUserId != null)
+            {
+                var user = await UserManager.FindByIdAsync(currentUserId);
+                if (user != null)
+                {
+                    currentUserRoles = (await UserManager.GetRolesAsync(user)).ToList();
+                }
+            }
+            
+            // Re-fetch visible users and conversations because the updated user might now be visible to us,
+            // or we might now be visible to them.
+            await LoadData();
+            StateHasChanged();
+        });
     }
 
     /// <summary>

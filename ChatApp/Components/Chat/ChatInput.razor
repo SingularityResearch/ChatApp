@@ -37,13 +37,25 @@
         </div>
     }
 
-    <div class="chat-input-wrapper d-flex align-items-center">
-        <div class="position-relative w-100 d-flex align-items-center">
-            <textarea @ref="inputField" class="chat-input-field flex-grow-1 py-1" placeholder="@Placeholder"
-            @bind="MessageInput" @bind:event="oninput" @onkeydown="HandleKeyDown" rows="1"
-                style="resize: none; overflow-y: auto; max-height: 150px; min-height: 36px; line-height: 1.5;"></textarea>
+    <div class="chat-input-wrapper flex-column p-0">
+        @if (IsWysiwygMode)
+        {
+            // Toolbar has been moved into WysiwygEditor component
+        }
+        <div class="d-flex align-items-end w-100 p-1">
+            <div class="position-relative flex-grow-1 d-flex align-items-center" style="min-width: 0;">
+                @if (IsWysiwygMode)
+                {
+                    <WysiwygEditor @ref="_wysiwygEditor" @bind-Value="MessageInput" OnKeyUp="HandleWysiwygKeyUp" />
+                }
+                else
+                {
+                    <textarea @ref="inputField" class="chat-input-field flex-grow-1 py-1" placeholder="@Placeholder"
+                        @bind="MessageInput" @bind:event="oninput" @onkeydown="HandleKeyDown" rows="1"
+                        style="resize: none; overflow-y: auto; max-height: 150px; min-height: 36px; line-height: 1.5;"></textarea>
+                }
 
-            @if (ShowInlineSuggestions && InlineSuggestions.Any())
+            @if (ShowInlineSuggestions && InlineSuggestions.Any() && !IsWysiwygMode)
             {
                 <div class="emoji-picker-backdrop" @onclick="() => ShowInlineSuggestions = false"
                     style="background: transparent;"></div>
@@ -61,8 +73,13 @@
             }
         </div>
 
-        <div class="chat-input-actions d-flex align-items-center">
-
+        <div class="chat-input-actions d-flex align-items-center mb-1 me-1">
+            <button class="btn btn-icon btn-sm text-light @(IsWysiwygMode ? "text-primary bg-secondary bg-opacity-25" : "")" type="button" @onclick="ToggleWysiwygMode" title="Format Text" style="position: relative; width: 32px; height: 32px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit-2" style="position: absolute; right: 4px; bottom: 4px; width: 14px; height: 14px;">
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                </svg>
+                <span style="position: absolute; left: 4px; top: -1px; font-size: 14px; font-weight: 500; font-family: sans-serif;">A</span>
+            </button>
 
             <div class="position-relative d-inline-block">
                 <button class="btn btn-icon btn-sm text-light" @onclick="ToggleEmojiPicker" type="button"
@@ -110,6 +127,7 @@
                 <i class="bi bi-send"></i>
             </button>
         </div>
+        </div>
     </div>
     @ChildContent
 </div>
@@ -124,21 +142,43 @@
     [Parameter] public string Class { get; set; } = "";
 
     private ElementReference inputField;
+    private WysiwygEditor? _wysiwygEditor;
     private string _messageInput = "";
     private ChatMessage? _replyingToMessage = null;
+    
+    private bool IsWysiwygMode { get; set; } = false;
+
+    protected override void OnInitialized()
+    {
+    }
 
     public async Task SetInputAsync(string text)
     {
         _messageInput = text;
         StateHasChanged();
-        await inputField.FocusAsync();
+        if (IsWysiwygMode && _wysiwygEditor != null)
+        {
+            await _wysiwygEditor.SetContentAsync(text);
+            await _wysiwygEditor.FocusAsync();
+        }
+        else
+        {
+            await inputField.FocusAsync();
+        }
     }
 
     public async Task SetReplyMessageAsync(ChatMessage msg)
     {
         _replyingToMessage = msg;
         StateHasChanged();
-        await inputField.FocusAsync();
+        if (IsWysiwygMode && _wysiwygEditor != null)
+        {
+            await _wysiwygEditor.FocusAsync();
+        }
+        else
+        {
+            await inputField.FocusAsync();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -147,13 +187,45 @@
         {
             await JSRuntime.InvokeVoidAsync("eval", @"
 var tx = document.querySelector('.chat-input-field');
-if (tx) {
+if (tx && tx.tagName === 'TEXTAREA') {
 tx.addEventListener('input', function() {
 this.style.height = 'auto';
 this.style.height = (this.scrollHeight) + 'px';
 });
 }
 ");
+        }
+    }
+
+    private async Task ToggleWysiwygMode()
+    {
+        IsWysiwygMode = !IsWysiwygMode;
+        if (IsWysiwygMode)
+        {
+            // Set text to HTML cleanly, converting newlines
+            var html = System.Net.WebUtility.HtmlEncode(_messageInput).Replace("\n", "<br>");
+            _messageInput = html;
+            StateHasChanged(); // Render the WysiwygEditor instance
+        }
+        else
+        {
+            // Convert HTML back to text (roughly). Strip tags, convert brs.
+            var temp = _messageInput.Replace("<br>", "\n").Replace("<br/>", "\n");
+            temp = System.Text.RegularExpressions.Regex.Replace(temp, "<.*?>", String.Empty);
+            temp = System.Net.WebUtility.HtmlDecode(temp);
+            _messageInput = temp;
+            StateHasChanged();
+            await Task.Delay(50);
+            await inputField.FocusAsync();
+            await JSRuntime.InvokeVoidAsync("eval", "var t = document.querySelector('textarea.chat-input-field'); if(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}");
+        }
+    }
+
+    private async Task HandleWysiwygKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await Send();
         }
     }
 
@@ -226,18 +298,25 @@ this.style.height = (this.scrollHeight) + 'px';
 
 
 
-    private void InsertEmoji(Microsoft.FluentUI.AspNetCore.Components.Emoji emoji)
+    private async Task InsertEmoji(Microsoft.FluentUI.AspNetCore.Components.Emoji emoji)
     {
         string unicode = EmojiService.GetUnicode(emoji.Name);
         string insertText = string.IsNullOrEmpty(unicode)
         ? EmojiService.GetShortcode(emoji)
         : unicode;
 
-        if (!string.IsNullOrEmpty(MessageInput) && !MessageInput.EndsWith(" "))
+        if (IsWysiwygMode && _wysiwygEditor != null)
         {
-            _messageInput += " "; // Bypass property setter to avoid triggering search loop
+            await _wysiwygEditor.InsertTextAsync(unicode);
         }
-        _messageInput += insertText + " ";
+        else
+        {
+            if (!string.IsNullOrEmpty(MessageInput) && !MessageInput.EndsWith(" "))
+            {
+                _messageInput += " "; // Bypass property setter to avoid triggering search loop
+            }
+            _messageInput += insertText + " ";
+        }
         ShowEmojiPicker = false;
     }
 
@@ -304,8 +383,16 @@ this.style.height = (this.scrollHeight) + 'px';
             _messageInput = string.Empty;
             _replyingToMessage = null;
             ShowInlineSuggestions = false;
-            // Reset textarea height after sending
-            await JSRuntime.InvokeVoidAsync("eval", "document.querySelector('.chat-input-field').style.height = 'auto'");
+            
+            if (IsWysiwygMode)
+            {
+                await JSRuntime.InvokeVoidAsync("chatWysiwyg.clearContent", "wysiwyg-editor");
+            }
+            else
+            {
+                // Reset textarea height after sending
+                await JSRuntime.InvokeVoidAsync("eval", "var t = document.querySelector('textarea.chat-input-field'); if(t){t.style.height='auto';}");
+            }
         }
     }
 

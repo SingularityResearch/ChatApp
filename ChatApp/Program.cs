@@ -20,6 +20,7 @@ builder.Services.AddSingleton<ChatApp.Services.IChatMessageService, ChatApp.Serv
 builder.Services.AddSingleton<ChatApp.Services.IEmojiService, ChatApp.Services.EmojiService>();
 builder.Services.AddScoped<ChatApp.Services.BannerService>();
 builder.Services.AddSingleton<ChatApp.Services.BannerStateService>();
+builder.Services.AddSingleton<ChatApp.Services.HtmlSanitizerService>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCascadingAuthenticationState();

@@ -6,8 +6,17 @@
 
     @if (Message.IsEditing)
     {
-        <div class="edit-mode">
-            <input class="form-control form-control-sm mb-1" @bind="Message.EditBuffer" />
+        <div class="edit-mode mb-2">
+            @if (IsHtmlMessage(Message.Message))
+            {
+                <div class="border rounded mb-1 overflow-hidden" style="background-color: var(--card-bg, #2b2b2b); border-color: var(--card-border, #444) !important;">
+                    <WysiwygEditor @bind-Value="Message.EditBuffer" />
+                </div>
+            }
+            else
+            {
+                <input class="form-control form-control-sm mb-1" @bind="Message.EditBuffer" />
+            }
             <div class="d-flex gap-2">
                 <button class="btn btn-xs btn-success" @onclick="Save">Save</button>
                 <button class="btn btn-xs btn-secondary" @onclick="Cancel">Cancel</button>
@@ -114,12 +123,53 @@
                     </a>
                 </div>
             }
-            <div class="message-text">
-                @foreach (var block in ParseMessageToBlocks(Message.Message))
-                {
-                    if (block.IsQuote)
+            @if (IsHtmlMessage(Message.Message))
+            {
+                <div class="message-text wysiwyg-content p-2" style="white-space: normal; line-height: 1.5;">
+                    @((MarkupString)Message.Message)
+                </div>
+            }
+            else
+            {
+                <div class="message-text">
+                    @foreach (var block in ParseMessageToBlocks(Message.Message))
                     {
-                        <div class="message-quote">
+                        if (block.IsQuote)
+                        {
+                            <div class="message-quote">
+                                @foreach (var line in block.Lines)
+                                {
+                                    <div class="message-line">
+                                        @if (line.Count == 0 || (line.Count == 1 && string.IsNullOrEmpty(line[0].Text)))
+                                        {
+                                            <br />
+                                        }
+                                        else
+                                        {
+                                            @foreach (var segment in line)
+                                            {
+                                                if (segment.IsEmoji && segment.Emoji != null)
+                                                {
+                                                    <span class="emoji-wrapper" title="@segment.Text">
+                                                        <FluentEmoji Value="@segment.Emoji" Width="24px" />
+                                                    </span>
+                                                }
+                                                else if (segment.IsLink && !string.IsNullOrEmpty(segment.Url))
+                                                {
+                                                    <a href="@segment.Url" target="_blank" rel="noopener noreferrer" class="text-decoration-underline" style="color: inherit; font-weight: 500;" @onclick:stopPropagation>@segment.Text</a>
+                                                }
+                                                else
+                                                {
+                                                    @segment.Text
+                                                }
+                                            }
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
                             @foreach (var line in block.Lines)
                             {
                                 <div class="message-line">
@@ -149,42 +199,10 @@
                                     }
                                 </div>
                             }
-                        </div>
-                    }
-                    else
-                    {
-                        @foreach (var line in block.Lines)
-                        {
-                            <div class="message-line">
-                                @if (line.Count == 0 || (line.Count == 1 && string.IsNullOrEmpty(line[0].Text)))
-                                {
-                                    <br />
-                                }
-                                else
-                                {
-                                    @foreach (var segment in line)
-                                    {
-                                        if (segment.IsEmoji && segment.Emoji != null)
-                                        {
-                                            <span class="emoji-wrapper" title="@segment.Text">
-                                                <FluentEmoji Value="@segment.Emoji" Width="24px" />
-                                            </span>
-                                        }
-                                        else if (segment.IsLink && !string.IsNullOrEmpty(segment.Url))
-                                        {
-                                            <a href="@segment.Url" target="_blank" rel="noopener noreferrer" class="text-decoration-underline" style="color: inherit; font-weight: 500;" @onclick:stopPropagation>@segment.Text</a>
-                                        }
-                                        else
-                                        {
-                                            @segment.Text
-                                        }
-                                    }
-                                }
-                            </div>
                         }
                     }
-                }
-            </div>
+                </div>
+            }
         </div>
     }
 
@@ -235,6 +253,13 @@
     private async Task Cancel()
     {
         await OnCancelEdit.InvokeAsync(Message);
+    }
+
+    private bool IsHtmlMessage(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        // Simple heuristic: Does it contain HTML tags that our rich editor would output?
+        return System.Text.RegularExpressions.Regex.IsMatch(text, @"<\/?(?:div|span|b|i|u|strike|ul|ol|li|br|font)[^>]*>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 
     // --- Emoji Picker Logic ---
